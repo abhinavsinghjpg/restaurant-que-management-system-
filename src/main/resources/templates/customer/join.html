@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Queue — Restaurant Queue</title>
+    <meta name="description" content="Join the restaurant digital queue. Enter your details and get your queue token.">
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .join-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            background: radial-gradient(ellipse at 50% 0%, rgba(255,107,53,0.08) 0%, transparent 70%);
+        }
+        .join-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: var(--shadow-lg);
+        }
+        .join-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .join-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.35rem; }
+        .join-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+
+<!-- Back nav -->
+<div style="position: fixed; top: 1rem; left: 1rem; z-index: 10;">
+    <a href="/" class="btn btn-outline-light btn-sm">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="join-wrapper">
+    <div class="join-card fade-in-up">
+        <div class="text-center">
+            <div class="join-icon">🎫</div>
+            <h1 class="join-title">Join the Queue</h1>
+            <p class="join-subtitle">Fill in your details below to get your queue token.</p>
+        </div>
+
+        <form th:action="@{/queue/join}" th:object="${joinRequest}" method="post">
+
+            <!-- Customer Name -->
+            <div class="mb-3">
+                <label for="customerName" class="form-label">
+                    <i class="fas fa-user" style="color: var(--primary);"></i> Full Name
+                </label>
+                <input type="text"
+                       id="customerName"
+                       th:field="*{customerName}"
+                       th:classappend="${#fields.hasErrors('customerName')} ? 'is-invalid'"
+                       class="form-control"
+                       placeholder="e.g. Rahul Sharma"
+                       autocomplete="name">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('customerName')}"
+                     th:errors="*{customerName}"></div>
+            </div>
+
+            <!-- Mobile -->
+            <div class="mb-3">
+                <label for="mobile" class="form-label">
+                    <i class="fas fa-mobile-alt" style="color: var(--primary);"></i> Mobile Number
+                </label>
+                <input type="tel"
+                       id="mobile"
+                       th:field="*{mobile}"
+                       th:classappend="${#fields.hasErrors('mobile')} ? 'is-invalid'"
+                       class="form-control"
+                       placeholder="10-digit mobile number"
+                       autocomplete="tel">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('mobile')}"
+                     th:errors="*{mobile}"></div>
+            </div>
+
+            <!-- Party Size -->
+            <div class="mb-4">
+                <label for="partySize" class="form-label">
+                    <i class="fas fa-users" style="color: var(--primary);"></i> Number of People
+                </label>
+                <select id="partySize"
+                        th:field="*{partySize}"
+                        th:classappend="${#fields.hasErrors('partySize')} ? 'is-invalid'"
+                        class="form-select">
+                    <option value="">Select party size</option>
+                    <option th:each="i : ${#numbers.sequence(1, 10)}"
+                            th:value="${i}"
+                            th:text="${i} + ' ' + (${i == 1} ? 'person' : 'people')"></option>
+                </select>
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('partySize')}"
+                     th:errors="*{partySize}"></div>
+            </div>
+
+            <button type="submit" id="joinQueueBtn" class="btn btn-primary w-100 btn-lg">
+                <i class="fas fa-ticket-alt"></i> Get My Token
+            </button>
+
+        </form>
+
+        <p class="text-center mt-3" style="color: var(--text-muted); font-size: 0.8rem;">
+            No account needed. Your token is your identifier.
+        </p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

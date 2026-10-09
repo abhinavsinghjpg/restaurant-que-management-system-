@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue Management — Restaurant Queue Admin</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .currently-serving {
+            background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(45,55,72,0.5));
+            border: 2px solid rgba(255,107,53,0.4);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .serving-token { font-size: 2rem; font-weight: 800; color: var(--primary); letter-spacing: 2px; }
+        .table-select { min-width: 140px; }
+    </style>
+</head>
+<body>
+<div class="admin-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">🍽️ RQ Admin</div>
+        <ul class="sidebar-nav">
+            <li><a href="/admin/dashboard"><span class="nav-icon">📊</span> Dashboard</a></li>
+            <li><a href="/admin/queue" class="active"><span class="nav-icon">🎫</span> Queue</a></li>
+            <li><a href="/admin/tables"><span class="nav-icon">🪑</span> Tables</a></li>
+        </ul>
+        <div style="padding: 0.75rem; border-top: 1px solid var(--border); margin-top: auto;">
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                <i class="fas fa-user-circle"></i>
+                <span sec:authentication="name">Staff</span>
+            </div>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-light btn-sm w-100">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <h1 class="page-title">Queue Management</h1>
+                <p class="page-subtitle">
+                    <span th:text="${waitingCount}">0</span> customer(s) waiting
+                </p>
+            </div>
+            <!-- Call Next -->
+            <form th:action="@{/admin/queue/next}" method="post">
+                <button type="submit" id="callNextBtn" class="btn btn-primary btn-lg pulse-glow">
+                    <i class="fas fa-bullhorn"></i> Call Next
+                </button>
+            </form>
+        </div>
+
+        <!-- Flash messages -->
+        <div th:if="${successMessage}" class="alert alert-success mb-3">
+            <i class="fas fa-check-circle"></i> <span th:text="${successMessage}"></span>
+        </div>
+        <div th:if="${infoMessage}" class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i> <span th:text="${infoMessage}"></span>
+        </div>
+
+        <!-- Currently Serving -->
+        <div th:if="${currentlyCalled != null}" class="currently-serving mb-4">
+            <div style="font-size: 1.5rem;">📢</div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Now Calling</div>
+                <div class="serving-token" th:text="${currentlyCalled.tokenNumber}">A-01</div>
+            </div>
+            <div style="flex: 1;">
+                <div style="font-weight: 600;" th:text="${currentlyCalled.customerName}">Customer</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    Party of <span th:text="${currentlyCalled.partySize}">2</span>
+                </div>
+            </div>
+            <!-- Seat form for currently called -->
+            <form th:action="@{/admin/queue/{id}/seat(id=${currentlyCalled.id})}" method="post" class="d-flex gap-2 align-items-center">
+                <select name="tableId" class="form-select table-select" style="max-width: 180px;">
+                    <option value="">No table</option>
+                    <th:block th:each="table : ${availableTables}">
+                        <option th:if="${table.status.name() == 'AVAILABLE'}"
+                                th:value="${table.id}"
+                                th:text="${table.tableNumber} + ' (cap: ' + ${table.capacity} + ')'">
+                        </option>
+                    </th:block>
+                </select>
+                <button type="submit" id="seatCurrentBtn" class="btn btn-success">
+                    <i class="fas fa-chair"></i> Seat
+                </button>
+            </form>
+        </div>
+
+        <!-- Queue Table -->
+        <div class="rq-card" style="padding: 0;">
+            <!-- Empty state -->
+            <div th:if="${queue.isEmpty()}" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+                <div style="font-weight: 600;">Queue is empty!</div>
+                <div style="font-size: 0.9rem;">No customers are currently waiting.</div>
+            </div>
+
+            <table th:unless="${queue.isEmpty()}" class="rq-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Name</th>
+                        <th>People</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="entry : ${queue}">
+                        <td>
+                            <span style="font-weight: 700; color: var(--primary);" th:text="${entry.tokenNumber}">A-01</span>
+                        </td>
+                        <td th:text="${entry.customerName}">Customer</td>
+                        <td>
+                            <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                                <i class="fas fa-users" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+                                <span th:text="${entry.partySize}">2</span>
+                            </span>
+                        </td>
+                        <td>
+                            <span th:class="'badge-status badge-' + ${#strings.toLowerCase(entry.status)}"
+                                  th:text="${entry.status}">WAITING</span>
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.85rem;"
+                            th:text="${#temporals.format(entry.joinTime, 'hh:mm a')}">10:30 AM</td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <!-- Seat button with table select (for CALLED entries) -->
+                                <form th:if="${entry.status.name() == 'CALLED'}"
+                                      th:action="@{/admin/queue/{id}/seat(id=${entry.id})}"
+                                      method="post"
+                                      class="d-flex gap-1">
+                                    <select name="tableId" class="form-select" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; max-width: 130px;">
+                                        <option value="">No table</option>
+                                        <th:block th:each="table : ${availableTables}">
+                                            <option th:if="${table.status.name() == 'AVAILABLE'}"
+                                                    th:value="${table.id}"
+                                                    th:text="${table.tableNumber} + ' (' + ${table.capacity} + ')'">
+                                            </option>
+                                        </th:block>
+                                    </select>
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-chair"></i> Seat
+                                    </button>
+                                </form>
+
+                                <!-- Skip button -->
+                                <form th:action="@{/admin/queue/{id}/skip(id=${entry.id})}" method="post">
+                                    <button type="submit" class="btn btn-warning btn-sm"
+                                            onclick="return confirm('Skip this customer?')">
+                                        <i class="fas fa-forward"></i> Skip
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

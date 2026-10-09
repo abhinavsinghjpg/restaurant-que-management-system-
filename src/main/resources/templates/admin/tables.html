@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Management — Restaurant Queue Admin</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="admin-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">🍽️ RQ Admin</div>
+        <ul class="sidebar-nav">
+            <li><a href="/admin/dashboard"><span class="nav-icon">📊</span> Dashboard</a></li>
+            <li><a href="/admin/queue"><span class="nav-icon">🎫</span> Queue</a></li>
+            <li><a href="/admin/tables" class="active"><span class="nav-icon">🪑</span> Tables</a></li>
+        </ul>
+        <div style="padding: 0.75rem; border-top: 1px solid var(--border); margin-top: auto;">
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                <i class="fas fa-user-circle"></i>
+                <span sec:authentication="name">Staff</span>
+            </div>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-light btn-sm w-100">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Table Management</h1>
+            <p class="page-subtitle">View and manage restaurant table availability</p>
+        </div>
+
+        <!-- Flash messages -->
+        <div th:if="${successMessage}" class="alert alert-success mb-3">
+            <i class="fas fa-check-circle"></i> <span th:text="${successMessage}"></span>
+        </div>
+
+        <!-- Legend -->
+        <div class="d-flex gap-3 mb-4 flex-wrap">
+            <span class="badge-status badge-available"><i class="fas fa-circle"></i> Available</span>
+            <span class="badge-status badge-occupied"><i class="fas fa-circle"></i> Occupied</span>
+        </div>
+
+        <!-- Table Grid -->
+        <div class="table-grid">
+            <div th:each="table : ${tables}"
+                 th:class="'table-tile ' + ${#strings.toLowerCase(table.status)}">
+
+                <div class="table-number" th:text="${table.tableNumber}">T1</div>
+                <div class="table-capacity">
+                    <i class="fas fa-users"></i>
+                    <span th:text="'Seats ' + ${table.capacity}">Seats 4</span>
+                </div>
+                <div class="mb-2">
+                    <span th:class="'badge-status badge-' + ${#strings.toLowerCase(table.status)}"
+                          th:text="${table.status}">AVAILABLE</span>
+                </div>
+
+                <!-- Release button for OCCUPIED -->
+                <form th:if="${table.status.name() == 'OCCUPIED'}"
+                      th:action="@{/admin/tables/{id}/release(id=${table.id})}"
+                      method="post">
+                    <button type="submit"
+                            th:id="'releaseTable-' + ${table.id}"
+                            class="btn btn-danger btn-sm w-100"
+                            onclick="return confirm('Release this table?')">
+                        <i class="fas fa-door-open"></i> Release
+                    </button>
+                </form>
+
+                <!-- Assign button for AVAILABLE (manual assignment) -->
+                <form th:if="${table.status.name() == 'AVAILABLE'}"
+                      th:action="@{/admin/tables/{id}/assign(id=${table.id})}"
+                      method="post">
+                    <button type="submit"
+                            th:id="'assignTable-' + ${table.id}"
+                            class="btn btn-outline-light btn-sm w-100"
+                            style="opacity: 0.7;"
+                            onclick="return confirm('Mark this table as occupied?')">
+                        <i class="fas fa-check"></i> Mark Occupied
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Empty state -->
+        <div th:if="${tables.isEmpty()}" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🪑</div>
+            <div style="font-weight: 600;">No tables configured.</div>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

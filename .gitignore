@@ -1,0 +1,23 @@
+# SQLite database file — do not commit
+*.db
+*.db-shm
+*.db-wal
+
+# Maven build output
+target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+.settings/
+
+# Secrets / env
+application-secrets.properties
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
