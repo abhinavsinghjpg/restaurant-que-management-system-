@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="'Print QR Standee - ' + ${restaurant.name}">Print QR Standee</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --dark: #0f172a;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f1f5f9;
+            color: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        /* Screen Controls Bar */
+        .no-print-bar {
+            width: 100%;
+            max-width: 580px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-print {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+        }
+
+        .btn-print:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-back {
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid var(--border-light);
+        }
+
+        .btn-back:hover {
+            background: #f8fafc;
+        }
+
+        /* Printable Standee Poster */
+        .poster-card {
+            width: 100%;
+            max-width: 560px;
+            background: #ffffff;
+            border-radius: 24px;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+            padding: 3rem 2.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .poster-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #f97316, #fb923c, #f59e0b);
+        }
+
+        .restaurant-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: #fff7ed;
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            margin-bottom: 1.25rem;
+            border: 1px solid #fed7aa;
+        }
+
+        .restaurant-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--dark);
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+        }
+
+        .poster-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* QR Frame */
+        .qr-frame {
+            display: inline-block;
+            background: #ffffff;
+            padding: 1.25rem;
+            border-radius: 20px;
+            border: 3px solid #0f172a;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.75rem;
+            position: relative;
+        }
+
+        .qr-frame img {
+            display: block;
+            width: 260px;
+            height: 260px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .scan-tagline {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 2rem;
+        }
+
+        .scan-tagline i {
+            color: var(--primary);
+            font-size: 1.4rem;
+        }
+
+        /* Steps */
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding-top: 1.5rem;
+            border-top: 1px dashed var(--border-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.4rem;
+        }
+
+        .step-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+            line-height: 1.3;
+        }
+
+        /* Direct URL */
+        .direct-link-box {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-light);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .direct-link-box strong {
+            color: var(--dark);
+        }
+
+        /* Print Media Styles */
+        @media print {
+            body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .no-print-bar {
+                display: none !important;
+            }
+
+            .poster-card {
+                max-width: 100% !important;
+                border: 2px solid #000000 !important;
+                box-shadow: none !important;
+                border-radius: 16px !important;
+                padding: 2.5rem 2rem !important;
+                page-break-inside: avoid;
+            }
+
+            .poster-card::before {
+                display: none;
+            }
+
+            .qr-frame {
+                border-color: #000000 !important;
+                box-shadow: none !important;
+            }
+
+            .qr-frame img {
+                width: 280px !important;
+                height: 280px !important;
+            }
+
+            .restaurant-title {
+                color: #000000 !important;
+            }
+
+            .scan-tagline {
+                color: #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Controls Bar (Hidden during printing) -->
+    <div class="no-print-bar">
+        <a href="javascript:history.back()" class="btn-action btn-back">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+        <button onclick="window.print()" class="btn-action btn-print">
+            <i class="bi bi-printer"></i> Print Poster
+        </button>
+    </div>
+
+    <!-- Printable Poster Card -->
+    <div class="poster-card">
+        <div class="restaurant-badge">
+            <i class="bi bi-shop"></i> Welcome to
+        </div>
+
+        <h1 class="restaurant-title" th:text="${restaurant.name}">Gourmet Bistro</h1>
+        <p class="poster-subtitle">Join our digital waiting list seamlessly — scan with your smartphone to reserve your spot.</p>
+
+        <!-- QR Code -->
+        <div class="qr-frame">
+            <img th:src="${qrBase64}" th:alt="'QR Code for ' + ${restaurant.name}">
+        </div>
+
+        <div class="scan-tagline">
+            <i class="bi bi-phone"></i>
+            <span>Scan with Phone Camera</span>
+        </div>
+
+        <!-- 3 Quick Steps -->
+        <div class="steps-container">
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div class="step-text">Scan QR Code with camera</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div class="step-text">Enter party size &amp; mobile</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div class="step-text">Get token &amp; track live</div>
+            </div>
+        </div>
+
+        <!-- Direct URL Fallback -->
+        <div class="direct-link-box">
+            Or visit directly: <strong th:text="${qrUrl}">http://localhost:8080/r/default-restaurant</strong>
+        </div>
+    </div>
+
+</body>
+</html>

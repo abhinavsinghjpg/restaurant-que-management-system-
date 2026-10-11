@@ -29,29 +29,35 @@ public class CustomerQueueService {
     private final QueueHistoryRepository queueHistoryRepository;
     private final TokenGenerator tokenGenerator;
     private final AppConfig appConfig;
+    private final com.restaurant.queue.modules.restaurant_management.repository.RestaurantRepository restaurantRepository;
 
     public CustomerQueueService(QueueEntryRepository queueEntryRepository,
                                 QueueHistoryRepository queueHistoryRepository,
                                 TokenGenerator tokenGenerator,
-                                AppConfig appConfig) {
+                                AppConfig appConfig,
+                                com.restaurant.queue.modules.restaurant_management.repository.RestaurantRepository restaurantRepository) {
         this.queueEntryRepository = queueEntryRepository;
         this.queueHistoryRepository = queueHistoryRepository;
         this.tokenGenerator = tokenGenerator;
         this.appConfig = appConfig;
+        this.restaurantRepository = restaurantRepository;
     }
 
     /**
-     * Joins the queue: validates input, creates entry, generates token, logs history.
+     * Joins the queue for a specific restaurant: validates input, creates entry, generates token, logs history.
      */
     @Transactional
-    public QueueEntry joinQueue(JoinQueueRequest request) {
+    public QueueEntry joinQueue(Long restaurantId, JoinQueueRequest request) {
+        Long targetRestaurantId = restaurantId != null ? restaurantId : 1L;
+
         QueueEntry entry = new QueueEntry();
+        entry.setRestaurantId(targetRestaurantId);
         entry.setCustomerName(request.getCustomerName().trim());
         entry.setMobile(request.getMobile().trim());
         entry.setPartySize(request.getPartySize());
         entry.setStatus(QueueStatus.WAITING);
         entry.setJoinTime(LocalDateTime.now());
-        entry.setTokenNumber(tokenGenerator.generateToken());
+        entry.setTokenNumber(tokenGenerator.generateToken(targetRestaurantId));
 
         QueueEntry saved = queueEntryRepository.save(entry);
 
@@ -59,6 +65,11 @@ public class CustomerQueueService {
         logHistory(saved.getId(), "JOINED");
 
         return saved;
+    }
+
+    @Transactional
+    public QueueEntry joinQueue(JoinQueueRequest request) {
+        return joinQueue(1L, request);
     }
 
     /**
@@ -76,8 +87,14 @@ public class CustomerQueueService {
         response.setStatus(entry.getStatus());
         response.setJoinTime(entry.getJoinTime());
 
+        Long rId = entry.getRestaurantId() != null ? entry.getRestaurantId() : 1L;
+        restaurantRepository.findById(rId).ifPresent(r -> {
+            response.setRestaurantName(r.getName());
+            response.setRestaurantSlug(r.getSlug());
+        });
+
         if (entry.getStatus() == QueueStatus.WAITING) {
-            long position = queueEntryRepository.countWaitingBefore(entry.getJoinTime());
+            long position = queueEntryRepository.countWaitingBeforeByRestaurant(rId, entry.getJoinTime());
             response.setPosition(position);
             response.setEstimatedWaitMins((int) (position * appConfig.getAvgServiceTimeMinutes()));
         } else {

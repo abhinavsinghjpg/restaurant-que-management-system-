@@ -19,6 +19,10 @@
             <li><a href="/admin/dashboard"><span class="nav-icon">📊</span> Dashboard</a></li>
             <li><a href="/admin/queue"><span class="nav-icon">🎫</span> Queue</a></li>
             <li><a href="/admin/tables" class="active"><span class="nav-icon">🪑</span> Tables</a></li>
+            <li><a href="/admin/reservations"><span class="nav-icon">📅</span> Reservations</a></li>
+            <li><a href="/admin/analytics"><span class="nav-icon">📈</span> Analytics</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a href="/admin/restaurants"><span class="nav-icon">🏢</span> Restaurants</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a href="/admin/staff"><span class="nav-icon">👥</span> Staff</a></li>
         </ul>
         <div style="padding: 0.75rem; border-top: 1px solid var(--border); margin-top: auto;">
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem;">
@@ -35,9 +39,21 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        <div class="page-header">
-            <h1 class="page-title">Table Management</h1>
-            <p class="page-subtitle">View and manage restaurant table availability</p>
+        <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="page-title">Table Management</h1>
+                <p class="page-subtitle">View and manage restaurant table availability</p>
+            </div>
+            <div th:if="${isAdmin and allRestaurants != null}" class="d-flex align-items-center gap-2">
+                <label class="text-muted small mb-0">Restaurant:</label>
+                <select class="form-select form-select-sm" style="width: auto; background: var(--bg-card); color: var(--text-primary); border-color: var(--border);"
+                        onchange="location.href='/admin/tables?restaurantId=' + this.value">
+                    <option th:each="r : ${allRestaurants}"
+                            th:value="${r.id}"
+                            th:text="${r.name}"
+                            th:selected="${r.id == currentRestaurantId}">Main Branch</option>
+                </select>
+            </div>
         </div>
 
         <!-- Flash messages -->
@@ -70,6 +86,7 @@
                 <form th:if="${table.status.name() == 'OCCUPIED'}"
                       th:action="@{/admin/tables/{id}/release(id=${table.id})}"
                       method="post">
+                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}" />
                     <button type="submit"
                             th:id="'releaseTable-' + ${table.id}"
                             class="btn btn-danger btn-sm w-100"
@@ -82,6 +99,7 @@
                 <form th:if="${table.status.name() == 'AVAILABLE'}"
                       th:action="@{/admin/tables/{id}/assign(id=${table.id})}"
                       method="post">
+                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}" />
                     <button type="submit"
                             th:id="'assignTable-' + ${table.id}"
                             class="btn btn-outline-light btn-sm w-100"

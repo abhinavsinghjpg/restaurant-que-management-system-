@@ -20,6 +20,14 @@ import java.util.Map;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleResourceNotFound(ResourceNotFoundException ex, Model model) {
+        model.addAttribute("errorTitle", "Not Found");
+        model.addAttribute("errorMessage", ex.getMessage());
+        return "error/error";
+    }
+
     @ExceptionHandler(QueueEntryNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public String handleQueueNotFound(QueueEntryNotFoundException ex, Model model) {

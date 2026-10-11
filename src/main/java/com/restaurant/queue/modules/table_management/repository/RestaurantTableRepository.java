@@ -15,4 +15,16 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
     List<RestaurantTable> findByCapacityGreaterThanEqualAndStatus(Integer minCapacity, TableStatus status);
 
     long countByStatus(TableStatus status);
+
+    List<RestaurantTable> findByRestaurantId(Long restaurantId);
+
+    List<RestaurantTable> findByRestaurantIdAndStatus(Long restaurantId, TableStatus status);
+
+    List<RestaurantTable> findByRestaurantIdAndCapacityGreaterThanEqualAndStatus(Long restaurantId, Integer minCapacity, TableStatus status);
+
+    long countByRestaurantIdAndStatus(Long restaurantId, TableStatus status);
+
+    java.util.Optional<RestaurantTable> findByIdAndRestaurantId(Long id, Long restaurantId);
+
+    java.util.Optional<RestaurantTable> findByTableNumberAndRestaurantId(String tableNumber, Long restaurantId);
 }

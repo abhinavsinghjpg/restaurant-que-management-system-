@@ -40,6 +40,14 @@ public class QueueManagementService {
         this.tableRepository = tableRepository;
     }
 
+    /** Returns all WAITING and CALLED entries sorted by join time for a restaurant. */
+    public List<QueueEntry> getActiveQueue(Long restaurantId) {
+        if (restaurantId == null) {
+            return getActiveQueue();
+        }
+        return queueEntryRepository.findActiveQueueByRestaurantId(restaurantId);
+    }
+
     /** Returns all WAITING and CALLED entries sorted by join time. */
     public List<QueueEntry> getActiveQueue() {
         return queueEntryRepository.findActiveQueue();
@@ -48,6 +56,28 @@ public class QueueManagementService {
     /** Returns all queue entries for complete history view. */
     public List<QueueEntry> getAllEntries() {
         return queueEntryRepository.findAll();
+    }
+
+    /**
+     * Calls the next WAITING customer for a specific restaurant: WAITING → CALLED.
+     */
+    @Transactional
+    public Optional<QueueEntry> callNext(Long restaurantId) {
+        if (restaurantId == null) {
+            return callNext();
+        }
+        List<QueueEntry> waiting = queueEntryRepository.findByRestaurantIdAndStatusOrderByJoinTimeAsc(restaurantId, QueueStatus.WAITING);
+        if (waiting.isEmpty()) {
+            return Optional.empty();
+        }
+
+        QueueEntry next = waiting.get(0);
+        next.setStatus(QueueStatus.CALLED);
+        next.setCalledTime(LocalDateTime.now());
+        queueEntryRepository.save(next);
+
+        logHistory(next.getId(), "CALLED");
+        return Optional.of(next);
     }
 
     /**
@@ -70,13 +100,15 @@ public class QueueManagementService {
     }
 
     /**
-     * Seats a customer: CALLED → SEATED. Optionally assigns a table.
+     * Seats a customer for a specific restaurant: CALLED → SEATED. Optionally assigns a table.
      */
     @Transactional
-    public void seatCustomer(Long entryId, Long tableId) {
-        QueueEntry entry = queueEntryRepository.findById(entryId)
-                .orElseThrow(() -> new QueueEntryNotFoundException(
-                        "Queue entry not found with ID: " + entryId));
+    public void seatCustomer(Long restaurantId, Long entryId, Long tableId) {
+        QueueEntry entry = (restaurantId != null)
+                ? queueEntryRepository.findByIdAndRestaurantId(entryId, restaurantId)
+                        .orElseThrow(() -> new QueueEntryNotFoundException("Queue entry not found with ID: " + entryId))
+                : queueEntryRepository.findById(entryId)
+                        .orElseThrow(() -> new QueueEntryNotFoundException("Queue entry not found with ID: " + entryId));
 
         if (entry.getStatus() != QueueStatus.CALLED) {
             throw new InvalidStatusTransitionException(
@@ -86,8 +118,11 @@ public class QueueManagementService {
 
         // Assign table if provided
         if (tableId != null) {
-            RestaurantTable table = tableRepository.findById(tableId)
-                    .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId));
+            RestaurantTable table = (restaurantId != null)
+                    ? tableRepository.findByIdAndRestaurantId(tableId, restaurantId)
+                            .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId))
+                    : tableRepository.findById(tableId)
+                            .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId));
 
             if (table.getStatus() != TableStatus.AVAILABLE) {
                 throw new TableNotAvailableException("Table " + table.getTableNumber() + " is already occupied.");
@@ -104,14 +139,21 @@ public class QueueManagementService {
         logHistory(entry.getId(), "SEATED");
     }
 
+    @Transactional
+    public void seatCustomer(Long entryId, Long tableId) {
+        seatCustomer(null, entryId, tableId);
+    }
+
     /**
      * Skips a customer: WAITING or CALLED → SKIPPED.
      */
     @Transactional
-    public void skipCustomer(Long entryId) {
-        QueueEntry entry = queueEntryRepository.findById(entryId)
-                .orElseThrow(() -> new QueueEntryNotFoundException(
-                        "Queue entry not found with ID: " + entryId));
+    public void skipCustomer(Long restaurantId, Long entryId) {
+        QueueEntry entry = (restaurantId != null)
+                ? queueEntryRepository.findByIdAndRestaurantId(entryId, restaurantId)
+                        .orElseThrow(() -> new QueueEntryNotFoundException("Queue entry not found with ID: " + entryId))
+                : queueEntryRepository.findById(entryId)
+                        .orElseThrow(() -> new QueueEntryNotFoundException("Queue entry not found with ID: " + entryId));
 
         if (entry.getStatus() != QueueStatus.WAITING && entry.getStatus() != QueueStatus.CALLED) {
             throw new InvalidStatusTransitionException(
@@ -122,6 +164,11 @@ public class QueueManagementService {
         queueEntryRepository.save(entry);
 
         logHistory(entry.getId(), "SKIPPED");
+    }
+
+    @Transactional
+    public void skipCustomer(Long entryId) {
+        skipCustomer(null, entryId);
     }
 
     // ============================================================

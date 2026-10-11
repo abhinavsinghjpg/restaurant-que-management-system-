@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="'Token ' + ${queueStatus.tokenNumber} + ' — Queue Status'">Queue Status</title>
-    <meta name="description" content="Track your queue position and estimated wait time.">
+    <title th:text="'Token ' + ${queueStatus.tokenNumber} + ' — Live Queue Status'">Queue Status</title>
+    <meta name="description" content="Track your queue position and estimated wait time in real-time.">
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
@@ -27,6 +27,55 @@
         .big-stat { text-align: center; padding: 1.5rem; }
         .big-stat-value { font-size: 3rem; font-weight: 800; line-height: 1; }
         .big-stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+
+        /* Live pulse pill */
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+            animation: pulse-green 1.8s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* Attention alert when CALLED */
+        .called-banner {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.4);
+            animation: bounceIn 0.6s ease;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.85); opacity: 0; }
+            60% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -35,14 +84,26 @@
 <nav class="navbar rq-navbar fixed-top">
     <div class="container">
         <a class="navbar-brand" href="/">🍽️ Restaurant<span>Queue</span></a>
-        <a href="/" class="btn btn-outline-light btn-sm">
-            <i class="fas fa-home"></i> Home
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            <span class="live-pill" id="liveIndicator">
+                <span class="live-dot"></span> Live
+            </span>
+            <a href="/" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-home"></i> Home
+            </a>
+        </div>
     </div>
 </nav>
 
 <div class="status-wrapper">
     <div class="container" style="max-width: 550px;">
+
+        <!-- Dynamic Called Banner (Shown if CALLED) -->
+        <div id="calledBanner" class="called-banner" th:style="${queueStatus.status.name() == 'CALLED' ? '' : 'display: none;'}">
+            <div style="font-size: 2.2rem; margin-bottom: 0.3rem;">📢</div>
+            <h4 style="font-weight: 800; margin-bottom: 0.3rem;">YOUR TABLE IS READY!</h4>
+            <p style="font-size: 0.95rem; margin-bottom: 0; opacity: 0.95;">Please head over to the host stand right away.</p>
+        </div>
 
         <!-- Flash messages -->
         <div th:if="${successMessage}" class="alert alert-success mb-3 fade-in-up">
@@ -51,11 +112,13 @@
         </div>
 
         <!-- Token Card -->
-        <div class="token-card mb-4 fade-in-up">
-            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Your Token</div>
-            <div class="token-display" th:text="${queueStatus.tokenNumber}">A-01</div>
+        <div class="token-card mb-4 fade-in-up" id="tokenCard">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;"
+                 th:text="${queueStatus.restaurantName != null ? queueStatus.restaurantName : 'Your Token'}">Your Token</div>
+            <div class="token-display" id="tokenDisplay" th:text="${queueStatus.tokenNumber}">A-01</div>
             <div class="mt-2">
-                <span th:class="'badge-status badge-' + ${#strings.toLowerCase(queueStatus.status)}"
+                <span id="tokenStatusBadge"
+                      th:class="'badge-status badge-' + ${#strings.toLowerCase(queueStatus.status)}"
                       th:text="${queueStatus.status}">WAITING</span>
             </div>
             <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.75rem;">
@@ -65,40 +128,42 @@
         </div>
 
         <!-- Live Position Info (only for WAITING) -->
-        <div th:if="${queueStatus.status.name() == 'WAITING'}" class="rq-card mb-4 fade-in-up delay-1" style="padding: 0;">
+        <div id="waitingInfoCard" class="rq-card mb-4 fade-in-up delay-1" style="padding: 0;"
+             th:style="${queueStatus.status.name() == 'WAITING' ? 'padding: 0;' : 'display: none;'}">
             <div class="row g-0">
                 <div class="col-6 big-stat" style="border-right: 1px solid var(--border);">
-                    <div class="big-stat-value" style="color: var(--warning);" th:text="${queueStatus.position}">3</div>
+                    <div class="big-stat-value" id="positionValue" style="color: var(--warning);" th:text="${queueStatus.position}">3</div>
                     <div class="big-stat-label">People Ahead</div>
                 </div>
                 <div class="col-6 big-stat">
-                    <div class="big-stat-value" style="color: var(--info);" th:text="${queueStatus.estimatedWaitMins} + ' min'">15 min</div>
+                    <div class="big-stat-value" id="waitMinsValue" style="color: var(--info);" th:text="${queueStatus.estimatedWaitMins} + ' min'">15 min</div>
                     <div class="big-stat-label">Est. Wait</div>
                 </div>
             </div>
         </div>
 
-        <!-- Status Messages for non-WAITING states -->
-        <div th:unless="${queueStatus.status.name() == 'WAITING'}" class="rq-card mb-4 fade-in-up delay-1" style="text-align: center; padding: 2rem;">
-            <div th:switch="${queueStatus.status.name()}">
-                <div th:case="'CALLED'">
+        <!-- Non-Waiting Status Message Box -->
+        <div id="nonWaitingCard" class="rq-card mb-4 fade-in-up delay-1" style="text-align: center; padding: 2rem;"
+             th:style="${queueStatus.status.name() == 'WAITING' ? 'display: none;' : 'text-align: center; padding: 2rem;'}">
+            <div id="nonWaitingContent">
+                <div th:if="${queueStatus.status.name() == 'CALLED'}">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">📢</div>
                     <div style="font-size: 1.1rem; font-weight: 600; color: var(--info);">Your table is being prepared!</div>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Please proceed to the reception.</p>
                 </div>
-                <div th:case="'SEATED'">
+                <div th:if="${queueStatus.status.name() == 'SEATED'}">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
                     <div style="font-size: 1.1rem; font-weight: 600; color: var(--accent);">Enjoy your meal!</div>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">You have been seated. Have a wonderful dining experience!</p>
                 </div>
-                <div th:case="'CANCELLED'">
+                <div th:if="${queueStatus.status.name() == 'CANCELLED'}">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">❌</div>
                     <div style="font-size: 1.1rem; font-weight: 600; color: var(--danger);">Queue entry cancelled.</div>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Want to join again?
                         <a href="/queue/join">Click here</a>
                     </p>
                 </div>
-                <div th:case="'SKIPPED'">
+                <div th:if="${queueStatus.status.name() == 'SKIPPED'}">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏭️</div>
                     <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-muted);">You were skipped.</div>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
@@ -115,18 +180,24 @@
                 <span class="info-value" th:text="${#temporals.format(queueStatus.joinTime, 'hh:mm a, dd MMM')}">10:30 AM</span>
             </div>
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-mobile-alt"></i> Status</span>
+                <span class="info-label"><i class="fas fa-info-circle"></i> Status</span>
                 <span class="info-value">
-                    <span th:class="'badge-status badge-' + ${#strings.toLowerCase(queueStatus.status)}"
+                    <span id="detailStatusBadge"
+                          th:class="'badge-status badge-' + ${#strings.toLowerCase(queueStatus.status)}"
                           th:text="${queueStatus.status}">WAITING</span>
                 </span>
+            </div>
+            <div class="info-row" th:if="${queueStatus.restaurantName != null}">
+                <span class="info-label"><i class="fas fa-store"></i> Restaurant</span>
+                <span class="info-value" th:text="${queueStatus.restaurantName}">Branch</span>
             </div>
         </div>
 
         <!-- Actions -->
         <div class="fade-in-up delay-3">
             <!-- Cancel button (only for WAITING) -->
-            <form th:if="${queueStatus.status.name() == 'WAITING'}"
+            <form id="cancelForm"
+                  th:style="${queueStatus.status.name() == 'WAITING' ? '' : 'display: none;'}"
                   th:action="@{/queue/{token}/cancel(token=${queueStatus.tokenNumber})}"
                   method="post"
                   onsubmit="return confirm('Are you sure you want to cancel your queue entry?')">
@@ -135,25 +206,174 @@
                 </button>
             </form>
 
-            <!-- Refresh -->
-            <button onclick="window.location.reload()" id="refreshStatusBtn" class="btn btn-outline-light w-100">
-                <i class="fas fa-sync-alt"></i> Refresh Status
+            <!-- Refresh Button (now triggers live poll immediately) -->
+            <button onclick="pollStatus(true)" id="refreshStatusBtn" class="btn btn-outline-light w-100">
+                <i class="fas fa-sync-alt" id="refreshSpinner"></i> Check Live Status
             </button>
         </div>
 
         <p class="text-center mt-4" style="color: var(--text-muted); font-size: 0.8rem;">
-            Bookmark this page to check your queue status later.
+            Auto-updating live every 5s • Bookmark this page to check your position anytime.
         </p>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Auto-refresh every 30 seconds if WAITING or CALLED
-    const status = '[[${queueStatus.status}]]';
-    if (status === 'WAITING' || status === 'CALLED') {
-        setTimeout(() => window.location.reload(), 30000);
+    const tokenNumber = '[[${queueStatus.tokenNumber}]]';
+    let currentStatus = '[[${queueStatus.status}]]';
+    let pollInterval = 5000;
+    let timerId = null;
+
+    // Web Audio synthesizer chime for table ready alert
+    function playChime() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.6);
+        } catch (e) {
+            console.log("Audio alert skipped:", e);
+        }
     }
+
+    async function pollStatus(manual = false) {
+        const spinner = document.getElementById('refreshSpinner');
+        if (manual && spinner) spinner.classList.add('fa-spin');
+
+        try {
+            const res = await fetch(`/api/queue/status/${encodeURIComponent(tokenNumber)}`);
+            if (!res.ok) throw new Error('Status poll failed');
+            const data = await res.json();
+
+            // Check for transition to CALLED
+            if (currentStatus !== 'CALLED' && data.status === 'CALLED') {
+                playChime();
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            }
+
+            currentStatus = data.status;
+
+            // Update badge & elements
+            const badgeClass = 'badge-status badge-' + data.status.toLowerCase();
+            const tokenStatusBadge = document.getElementById('tokenStatusBadge');
+            const detailStatusBadge = document.getElementById('detailStatusBadge');
+            if (tokenStatusBadge) {
+                tokenStatusBadge.className = badgeClass;
+                tokenStatusBadge.textContent = data.status;
+            }
+            if (detailStatusBadge) {
+                detailStatusBadge.className = badgeClass;
+                detailStatusBadge.textContent = data.status;
+            }
+
+            // Update position info
+            const posVal = document.getElementById('positionValue');
+            const waitVal = document.getElementById('waitMinsValue');
+            const waitingCard = document.getElementById('waitingInfoCard');
+            const nonWaitingCard = document.getElementById('nonWaitingCard');
+            const nonWaitingContent = document.getElementById('nonWaitingContent');
+            const calledBanner = document.getElementById('calledBanner');
+            const cancelForm = document.getElementById('cancelForm');
+
+            if (data.status === 'WAITING') {
+                if (posVal) posVal.textContent = data.position;
+                if (waitVal) waitVal.textContent = data.estimatedWaitMins + ' min';
+                if (waitingCard) waitingCard.style.display = 'block';
+                if (nonWaitingCard) nonWaitingCard.style.display = 'none';
+                if (calledBanner) calledBanner.style.display = 'none';
+                if (cancelForm) cancelForm.style.display = 'block';
+            } else {
+                if (waitingCard) waitingCard.style.display = 'none';
+                if (nonWaitingCard) nonWaitingCard.style.display = 'block';
+                if (cancelForm) cancelForm.style.display = 'none';
+
+                if (data.status === 'CALLED') {
+                    if (calledBanner) calledBanner.style.display = 'block';
+                    if (nonWaitingContent) {
+                        nonWaitingContent.innerHTML = `
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📢</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: var(--info);">Your table is being prepared!</div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Please proceed to the reception.</p>
+                        `;
+                    }
+                } else if (data.status === 'SEATED') {
+                    if (calledBanner) calledBanner.style.display = 'none';
+                    if (nonWaitingContent) {
+                        nonWaitingContent.innerHTML = `
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: var(--accent);">Enjoy your meal!</div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">You have been seated. Have a wonderful dining experience!</p>
+                        `;
+                    }
+                    stopPolling();
+                } else if (data.status === 'CANCELLED') {
+                    if (calledBanner) calledBanner.style.display = 'none';
+                    if (nonWaitingContent) {
+                        nonWaitingContent.innerHTML = `
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">❌</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: var(--danger);">Queue entry cancelled.</div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Want to join again? <a href="/queue/join">Click here</a></p>
+                        `;
+                    }
+                    stopPolling();
+                } else if (data.status === 'SKIPPED') {
+                    if (calledBanner) calledBanner.style.display = 'none';
+                    if (nonWaitingContent) {
+                        nonWaitingContent.innerHTML = `
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏭️</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-muted);">You were skipped.</div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;"><a href="/queue/join">Join queue again</a></p>
+                        `;
+                    }
+                    stopPolling();
+                }
+            }
+        } catch (err) {
+            console.warn("Polling error:", err);
+        } finally {
+            if (manual && spinner) {
+                setTimeout(() => spinner.classList.remove('fa-spin'), 400);
+            }
+        }
+    }
+
+    function startPolling() {
+        if (!timerId && (currentStatus === 'WAITING' || currentStatus === 'CALLED')) {
+            timerId = setInterval(() => pollStatus(false), pollInterval);
+        }
+    }
+
+    function stopPolling() {
+        if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+        }
+    }
+
+    // Page visibility awareness: poll slower when hidden, resume immediate on focus
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopPolling();
+            pollInterval = 20000;
+            startPolling();
+        } else {
+            stopPolling();
+            pollInterval = 5000;
+            pollStatus(false);
+            startPolling();
+        }
+    });
+
+    startPolling();
 </script>
 </body>
 </html>

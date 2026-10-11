@@ -32,6 +32,10 @@
             <li><a href="/admin/dashboard"><span class="nav-icon">📊</span> Dashboard</a></li>
             <li><a href="/admin/queue" class="active"><span class="nav-icon">🎫</span> Queue</a></li>
             <li><a href="/admin/tables"><span class="nav-icon">🪑</span> Tables</a></li>
+            <li><a href="/admin/reservations"><span class="nav-icon">📅</span> Reservations</a></li>
+            <li><a href="/admin/analytics"><span class="nav-icon">📈</span> Analytics</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a href="/admin/restaurants"><span class="nav-icon">🏢</span> Restaurants</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a href="/admin/staff"><span class="nav-icon">👥</span> Staff</a></li>
         </ul>
         <div style="padding: 0.75rem; border-top: 1px solid var(--border); margin-top: auto;">
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem;">
@@ -50,17 +54,33 @@
     <main class="main-content">
         <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div>
-                <h1 class="page-title">Queue Management</h1>
+                <h1 class="page-title d-flex align-items-center gap-2">
+                    Queue Management
+                    <span class="badge bg-success" style="font-size: 0.65rem; vertical-align: middle; letter-spacing: 0.05em;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>LIVE</span>
+                </h1>
                 <p class="page-subtitle">
-                    <span th:text="${waitingCount}">0</span> customer(s) waiting
+                    <span id="waitingCountDisplay" th:text="${waitingCount}">0</span> customer(s) waiting
                 </p>
             </div>
-            <!-- Call Next -->
-            <form th:action="@{/admin/queue/next}" method="post">
-                <button type="submit" id="callNextBtn" class="btn btn-primary btn-lg pulse-glow">
-                    <i class="fas fa-bullhorn"></i> Call Next
-                </button>
-            </form>
+            <div class="d-flex align-items-center gap-3">
+                <div th:if="${isAdmin and allRestaurants != null}" class="d-flex align-items-center gap-2">
+                    <label class="text-muted small mb-0">Restaurant:</label>
+                    <select class="form-select form-select-sm" style="width: auto; background: var(--bg-card); color: var(--text-primary); border-color: var(--border);"
+                            onchange="location.href='/admin/queue?restaurantId=' + this.value">
+                        <option th:each="r : ${allRestaurants}"
+                                th:value="${r.id}"
+                                th:text="${r.name}"
+                                th:selected="${r.id == currentRestaurantId}">Main Branch</option>
+                    </select>
+                </div>
+                <!-- Call Next -->
+                <form th:action="@{/admin/queue/next}" method="post">
+                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}" />
+                    <button type="submit" id="callNextBtn" class="btn btn-primary btn-lg pulse-glow">
+                        <i class="fas fa-bullhorn"></i> Call Next
+                    </button>
+                </form>
+            </div>
         </div>
 
         <!-- Flash messages -->
@@ -71,46 +91,49 @@
             <i class="fas fa-info-circle"></i> <span th:text="${infoMessage}"></span>
         </div>
 
-        <!-- Currently Serving -->
-        <div th:if="${currentlyCalled != null}" class="currently-serving mb-4">
-            <div style="font-size: 1.5rem;">📢</div>
-            <div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Now Calling</div>
-                <div class="serving-token" th:text="${currentlyCalled.tokenNumber}">A-01</div>
-            </div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600;" th:text="${currentlyCalled.customerName}">Customer</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted);">
-                    Party of <span th:text="${currentlyCalled.partySize}">2</span>
+        <!-- Currently Serving Container -->
+        <div id="currentlyServingContainer">
+            <div th:if="${currentlyCalled != null}" class="currently-serving mb-4">
+                <div style="font-size: 1.5rem;">📢</div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Now Calling</div>
+                    <div class="serving-token" th:text="${currentlyCalled.tokenNumber}">A-01</div>
                 </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600;" th:text="${currentlyCalled.customerName}">Customer</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        Party of <span th:text="${currentlyCalled.partySize}">2</span>
+                    </div>
+                </div>
+                <!-- Seat form for currently called -->
+                <form th:action="@{/admin/queue/{id}/seat(id=${currentlyCalled.id})}" method="post" class="d-flex gap-2 align-items-center">
+                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}" />
+                    <select name="tableId" class="form-select table-select" style="max-width: 180px;">
+                        <option value="">No table</option>
+                        <th:block th:each="table : ${availableTables}">
+                            <option th:if="${table.status.name() == 'AVAILABLE'}"
+                                    th:value="${table.id}"
+                                    th:text="${table.tableNumber} + ' (cap: ' + ${table.capacity} + ')'">
+                            </option>
+                        </th:block>
+                    </select>
+                    <button type="submit" id="seatCurrentBtn" class="btn btn-success">
+                        <i class="fas fa-chair"></i> Seat
+                    </button>
+                </form>
             </div>
-            <!-- Seat form for currently called -->
-            <form th:action="@{/admin/queue/{id}/seat(id=${currentlyCalled.id})}" method="post" class="d-flex gap-2 align-items-center">
-                <select name="tableId" class="form-select table-select" style="max-width: 180px;">
-                    <option value="">No table</option>
-                    <th:block th:each="table : ${availableTables}">
-                        <option th:if="${table.status.name() == 'AVAILABLE'}"
-                                th:value="${table.id}"
-                                th:text="${table.tableNumber} + ' (cap: ' + ${table.capacity} + ')'">
-                        </option>
-                    </th:block>
-                </select>
-                <button type="submit" id="seatCurrentBtn" class="btn btn-success">
-                    <i class="fas fa-chair"></i> Seat
-                </button>
-            </form>
         </div>
 
-        <!-- Queue Table -->
+        <!-- Queue Table Card -->
         <div class="rq-card" style="padding: 0;">
             <!-- Empty state -->
-            <div th:if="${queue.isEmpty()}" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+            <div id="emptyQueueMsg" th:style="${queue.isEmpty() ? '' : 'display: none;'}" style="padding: 3rem; text-align: center; color: var(--text-muted);">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
                 <div style="font-weight: 600;">Queue is empty!</div>
                 <div style="font-size: 0.9rem;">No customers are currently waiting.</div>
             </div>
 
-            <table th:unless="${queue.isEmpty()}" class="rq-table">
+            <table id="queueTable" th:style="${queue.isEmpty() ? 'display: none;' : ''}" class="rq-table">
                 <thead>
                     <tr>
                         <th>Token</th>
@@ -121,7 +144,7 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="queueTableBody">
                     <tr th:each="entry : ${queue}">
                         <td>
                             <span style="font-weight: 700; color: var(--primary);" th:text="${entry.tokenNumber}">A-01</span>
@@ -146,6 +169,7 @@
                                       th:action="@{/admin/queue/{id}/seat(id=${entry.id})}"
                                       method="post"
                                       class="d-flex gap-1">
+                                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}" />
                                     <select name="tableId" class="form-select" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; max-width: 130px;">
                                         <option value="">No table</option>
                                         <th:block th:each="table : ${availableTables}">
@@ -162,6 +186,7 @@
 
                                 <!-- Skip button -->
                                 <form th:action="@{/admin/queue/{id}/skip(id=${entry.id})}" method="post">
+                                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}" />
                                     <button type="submit" class="btn btn-warning btn-sm"
                                             onclick="return confirm('Skip this customer?')">
                                         <i class="fas fa-forward"></i> Skip
@@ -177,5 +202,137 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const currentRestaurantId = '[[${currentRestaurantId}]]';
+    let pollInterval = 6000;
+
+    async function pollStaffQueue() {
+        // Skip re-render if staff is actively typing or selecting a table
+        const activeElem = document.activeElement;
+        if (activeElem && (activeElem.tagName === 'SELECT' || activeElem.tagName === 'INPUT')) {
+            return;
+        }
+
+        try {
+            const url = currentRestaurantId 
+                ? `/api/admin/queue/data?restaurantId=${encodeURIComponent(currentRestaurantId)}`
+                : '/api/admin/queue/data';
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            // Update waiting count
+            const countDisplay = document.getElementById('waitingCountDisplay');
+            if (countDisplay) countDisplay.textContent = data.waitingCount;
+
+            // Update currently serving section
+            const servingContainer = document.getElementById('currentlyServingContainer');
+            if (servingContainer) {
+                if (data.currentlyCalled) {
+                    const c = data.currentlyCalled;
+                    let tableOptions = '<option value="">No table</option>';
+                    if (data.availableTables) {
+                        data.availableTables.forEach(t => {
+                            tableOptions += `<option value="${t.id}">${t.tableNumber} (cap: ${t.capacity})</option>`;
+                        });
+                    }
+
+                    servingContainer.innerHTML = `
+                        <div class="currently-serving mb-4">
+                            <div style="font-size: 1.5rem;">📢</div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Now Calling</div>
+                                <div class="serving-token">${c.tokenNumber}</div>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600;">${c.customerName}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                    Party of <span>${c.partySize}</span>
+                                </div>
+                            </div>
+                            <form action="/admin/queue/${c.id}/seat" method="post" class="d-flex gap-2 align-items-center">
+                                <input type="hidden" name="restaurantId" value="${data.restaurantId}" />
+                                <select name="tableId" class="form-select table-select" style="max-width: 180px;">
+                                    ${tableOptions}
+                                </select>
+                                <button type="submit" id="seatCurrentBtn" class="btn btn-success">
+                                    <i class="fas fa-chair"></i> Seat
+                                </button>
+                            </form>
+                        </div>
+                    `;
+                } else {
+                    servingContainer.innerHTML = '';
+                }
+            }
+
+            // Update queue table
+            const emptyMsg = document.getElementById('emptyQueueMsg');
+            const queueTable = document.getElementById('queueTable');
+            const tbody = document.getElementById('queueTableBody');
+
+            if (!data.entries || data.entries.length === 0) {
+                if (emptyMsg) emptyMsg.style.display = 'block';
+                if (queueTable) queueTable.style.display = 'none';
+            } else {
+                if (emptyMsg) emptyMsg.style.display = 'none';
+                if (queueTable) queueTable.style.display = 'table';
+
+                let rowsHtml = '';
+                data.entries.forEach(entry => {
+                    let tableOptions = '<option value="">No table</option>';
+                    if (data.availableTables) {
+                        data.availableTables.forEach(t => {
+                            tableOptions += `<option value="${t.id}">${t.tableNumber} (${t.capacity})</option>`;
+                        });
+                    }
+
+                    const seatForm = entry.status === 'CALLED' ? `
+                        <form action="/admin/queue/${entry.id}/seat" method="post" class="d-flex gap-1">
+                            <input type="hidden" name="restaurantId" value="${data.restaurantId}" />
+                            <select name="tableId" class="form-select" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; max-width: 130px;">
+                                ${tableOptions}
+                            </select>
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="fas fa-chair"></i> Seat
+                            </button>
+                        </form>
+                    ` : '';
+
+                    rowsHtml += `
+                        <tr>
+                            <td><span style="font-weight: 700; color: var(--primary);">${entry.tokenNumber}</span></td>
+                            <td>${entry.customerName}</td>
+                            <td>
+                                <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                                    <i class="fas fa-users" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+                                    <span>${entry.partySize}</span>
+                                </span>
+                            </td>
+                            <td><span class="badge-status badge-${entry.status.toLowerCase()}">${entry.status}</span></td>
+                            <td style="color: var(--text-muted); font-size: 0.85rem;">${entry.joinTimeFormatted}</td>
+                            <td>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    ${seatForm}
+                                    <form action="/admin/queue/${entry.id}/skip" method="post">
+                                        <input type="hidden" name="restaurantId" value="${data.restaurantId}" />
+                                        <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Skip this customer?')">
+                                            <i class="fas fa-forward"></i> Skip
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                if (tbody) tbody.innerHTML = rowsHtml;
+            }
+        } catch (e) {
+            console.warn("Live queue poll failed:", e);
+        }
+    }
+
+    setInterval(pollStaffQueue, pollInterval);
+</script>
 </body>
 </html>

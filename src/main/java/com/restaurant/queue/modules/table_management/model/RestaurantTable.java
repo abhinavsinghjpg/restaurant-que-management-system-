@@ -24,6 +24,18 @@ public class RestaurantTable {
     @Column(name = "status", nullable = false)
     private TableStatus status;
 
+    @Column(name = "restaurant_id")
+    private Long restaurantId;
+
+    public RestaurantTable() {
+    }
+
+    public RestaurantTable(String tableNumber, Integer capacity, TableStatus status) {
+        this.tableNumber = tableNumber;
+        this.capacity = capacity;
+        this.status = status;
+    }
+
     // ============================================================
     // Getters & Setters
     // ============================================================
@@ -38,4 +50,7 @@ public class RestaurantTable {
 
     public TableStatus getStatus() { return status; }
     public void setStatus(TableStatus status) { this.status = status; }
+
+    public Long getRestaurantId() { return restaurantId; }
+    public void setRestaurantId(Long restaurantId) { this.restaurantId = restaurantId; }
 }

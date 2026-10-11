@@ -15,15 +15,27 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final com.restaurant.queue.modules.authentication.service.AuthService authService;
+    private final com.restaurant.queue.modules.restaurant_management.repository.RestaurantRepository restaurantRepository;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService,
+                               com.restaurant.queue.modules.authentication.service.AuthService authService,
+                               com.restaurant.queue.modules.restaurant_management.repository.RestaurantRepository restaurantRepository) {
         this.dashboardService = dashboardService;
+        this.authService = authService;
+        this.restaurantRepository = restaurantRepository;
     }
 
     @GetMapping("/dashboard")
-    public String showDashboard(Model model) {
-        DashboardStatsResponse stats = dashboardService.getStats();
+    public String showDashboard(@org.springframework.web.bind.annotation.RequestParam(required = false) Long restaurantId, Model model) {
+        Long resolvedRestaurantId = authService.resolveRestaurantId(restaurantId);
+        DashboardStatsResponse stats = dashboardService.getStats(resolvedRestaurantId);
         model.addAttribute("stats", stats);
+        model.addAttribute("currentRestaurantId", resolvedRestaurantId);
+        model.addAttribute("isAdmin", authService.isAdmin());
+        if (authService.isAdmin()) {
+            model.addAttribute("allRestaurants", restaurantRepository.findByActiveTrue());
+        }
         return "admin/dashboard";
     }
 

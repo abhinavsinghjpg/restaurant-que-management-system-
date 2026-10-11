@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics &amp; Insights — Restaurant Queue System</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        .filter-btn-group .btn {
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.4rem 0.9rem;
+        }
+        .filter-btn-group .btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+        }
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .chart-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            🍽️ Restaurant<span>Queue</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            <a href="/admin/queue" class="nav-item">
+                <i class="fas fa-list-ol"></i> Live Queue
+            </a>
+            <a href="/admin/tables" class="nav-item">
+                <i class="fas fa-chair"></i> Tables
+            </a>
+            <a href="/admin/reservations" class="nav-item">
+                <i class="fas fa-calendar-alt"></i> Reservations
+            </a>
+            <a href="/admin/analytics" class="nav-item active">
+                <i class="fas fa-chart-pie"></i> Analytics
+            </a>
+            <div th:if="${isAdmin}" class="sidebar-section-divider"></div>
+            <a th:if="${isAdmin}" href="/admin/restaurants" class="nav-item">
+                <i class="fas fa-store"></i> Restaurants
+            </a>
+            <a th:if="${isAdmin}" href="/admin/staff" class="nav-item">
+                <i class="fas fa-users-cog"></i> Staff Accounts
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+            <div>
+                <h1 class="page-title d-flex align-items-center gap-2">
+                    <i class="fas fa-chart-bar text-warning"></i> Queue &amp; Dining Analytics
+                </h1>
+                <p class="page-subtitle">Performance metrics, peak hours, and customer trends for <strong th:text="${analytics.restaurantName}">Restaurant</strong>.</p>
+            </div>
+
+            <!-- Admin Restaurant Switcher -->
+            <div th:if="${isAdmin and allRestaurants != null}" class="d-flex align-items-center gap-2">
+                <label class="text-muted small mb-0">Restaurant:</label>
+                <select class="form-select form-select-sm" style="width: auto; background: var(--bg-card); color: var(--text-primary); border-color: var(--border);"
+                        onchange="location.href='/admin/analytics?restaurantId=' + this.value + '&range=' + '[[${activeRange}]]'">
+                    <option th:each="r : ${allRestaurants}"
+                            th:value="${r.id}"
+                            th:text="${r.name}"
+                            th:selected="${r.id == currentRestaurantId}">Main Branch</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Filter Presets & Custom Range -->
+        <div class="card mb-4" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem;">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="filter-btn-group d-flex gap-2 flex-wrap">
+                    <a th:href="@{/admin/analytics(restaurantId=${currentRestaurantId}, range='today')}"
+                       class="btn btn-outline-light" th:classappend="${activeRange == 'today' ? 'active' : ''}">
+                        <i class="fas fa-calendar-day me-1"></i> Today
+                    </a>
+                    <a th:href="@{/admin/analytics(restaurantId=${currentRestaurantId}, range='7days')}"
+                       class="btn btn-outline-light" th:classappend="${activeRange == '7days' ? 'active' : ''}">
+                        <i class="fas fa-calendar-week me-1"></i> Last 7 Days
+                    </a>
+                    <a th:href="@{/admin/analytics(restaurantId=${currentRestaurantId}, range='30days')}"
+                       class="btn btn-outline-light" th:classappend="${activeRange == '30days' ? 'active' : ''}">
+                        <i class="fas fa-calendar me-1"></i> Last 30 Days
+                    </a>
+                    <a th:href="@{/admin/analytics(restaurantId=${currentRestaurantId}, range='all')}"
+                       class="btn btn-outline-light" th:classappend="${activeRange == 'all' ? 'active' : ''}">
+                        <i class="fas fa-infinity me-1"></i> All Time
+                    </a>
+                </div>
+
+                <!-- Custom Range Form -->
+                <form method="get" action="/admin/analytics" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="restaurantId" th:if="${currentRestaurantId != null}" th:value="${currentRestaurantId}">
+                    <input type="hidden" name="range" value="custom">
+                    <input type="date" name="startDate" class="form-control form-control-sm"
+                           th:value="${analytics.startDate}"
+                           style="background: var(--bg-dark); color: var(--text-primary); border-color: var(--border);">
+                    <span class="text-muted small">to</span>
+                    <input type="date" name="endDate" class="form-control form-control-sm"
+                           th:value="${analytics.endDate}"
+                           style="background: var(--bg-dark); color: var(--text-primary); border-color: var(--border);">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 4 Key Metric Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Visits -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card" style="--card-accent: var(--primary);">
+                    <div class="stat-value" style="color: var(--primary);" th:text="${analytics.totalVisits}">0</div>
+                    <div class="stat-label">Total Queue Visits</div>
+                    <small class="text-muted mt-2 d-block">
+                        <i class="fas fa-user-friends me-1"></i> <span th:text="${analytics.totalGuestsServed}">0</span> guests served
+                    </small>
+                </div>
+            </div>
+
+            <!-- Avg Wait Time -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card" style="--card-accent: var(--info);">
+                    <div class="stat-value" style="color: var(--info);" th:text="${analytics.avgWaitMinutes} + 'm'">0m</div>
+                    <div class="stat-label">Avg Wait Time</div>
+                    <small class="text-muted mt-2 d-block">
+                        Median: <span th:text="${analytics.medianWaitMinutes} + 'm'">0m</span>
+                    </small>
+                </div>
+            </div>
+
+            <!-- Peak Hour -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card" style="--card-accent: var(--warning);">
+                    <div class="stat-value" style="font-size: 1.4rem; color: var(--warning); line-height: 1.3;" th:text="${analytics.peakHourLabel}">12:00 PM</div>
+                    <div class="stat-label">Busiest Hour Window</div>
+                    <small class="text-muted mt-2 d-block">
+                        Peak load: <span th:text="${analytics.peakHourCount}">0</span> tickets
+                    </small>
+                </div>
+            </div>
+
+            <!-- Reservation Fulfillment -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card" style="--card-accent: var(--accent);">
+                    <div class="stat-value" style="color: var(--accent);" th:text="${analytics.reservationFulfillmentRate} + '%'">0%</div>
+                    <div class="stat-label">Reservation Fulfillment</div>
+                    <small class="text-muted mt-2 d-block">
+                        <span th:text="${analytics.seatedReservations}">0</span> of <span th:text="${analytics.totalReservations}">0</span> seated
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1: Hourly Peak Hours (Bar) & Queue Outcomes (Doughnut) -->
+        <div class="row g-4 mb-4">
+            <!-- Hourly Traffic Chart -->
+            <div class="col-lg-8">
+                <div class="chart-card">
+                    <div class="chart-title">
+                        <i class="fas fa-chart-simple text-warning"></i> Hourly Traffic Distribution
+                    </div>
+                    <div class="chart-subtitle">
+                        Customer check-ins by hour of day (Peak load analysis)
+                    </div>
+                    <div style="flex: 1; min-height: 280px;">
+                        <canvas id="hourlyBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue Outcomes Doughnut -->
+            <div class="col-lg-4">
+                <div class="chart-card">
+                    <div class="chart-title">
+                        <i class="fas fa-pie-chart text-info"></i> Queue Status Breakdown
+                    </div>
+                    <div class="chart-subtitle">
+                        Distribution of completed, cancelled &amp; skipped tickets
+                    </div>
+                    <div style="flex: 1; min-height: 280px; position: relative;">
+                        <canvas id="queueStatusDoughnut"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2: Reservations Breakdown & Performance Table -->
+        <div class="row g-4 mb-4">
+            <!-- Reservations Doughnut -->
+            <div class="col-lg-5">
+                <div class="chart-card">
+                    <div class="chart-title">
+                        <i class="fas fa-calendar-check text-success"></i> Reservation Outcomes
+                    </div>
+                    <div class="chart-subtitle">
+                        Booking completion, cancellation, and no-show metrics
+                    </div>
+                    <div style="flex: 1; min-height: 260px; position: relative;">
+                        <canvas id="reservationsDoughnut"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Breakdown Table -->
+            <div class="col-lg-7">
+                <div class="chart-card">
+                    <div class="chart-title">
+                        <i class="fas fa-table-list text-primary"></i> Operations Summary
+                    </div>
+                    <div class="chart-subtitle">
+                        Detailed breakdown for the selected period
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0" style="background: transparent;">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-chair me-2 text-success"></i> Seated / Served Walk-ins</td>
+                                    <td class="text-end fw-bold text-success" th:text="${analytics.seatedCount}">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-hourglass-start me-2 text-warning"></i> Currently Waiting</td>
+                                    <td class="text-end fw-bold text-warning" th:text="${analytics.waitingCount}">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-times-circle me-2 text-danger"></i> Cancelled Walk-ins</td>
+                                    <td class="text-end fw-bold text-danger" th:text="${analytics.cancelledCount}">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-forward me-2 text-secondary"></i> Skipped Walk-ins</td>
+                                    <td class="text-end fw-bold text-secondary" th:text="${analytics.skippedCount}">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-calendar-alt me-2 text-info"></i> Total Table Reservations</td>
+                                    <td class="text-end fw-bold text-info" th:text="${analytics.totalReservations}">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-calendar-times me-2 text-danger"></i> Reservation Cancellations / No-Shows</td>
+                                    <td class="text-end fw-bold text-danger" th:text="${analytics.cancelledReservations + analytics.noShowReservations}">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted"><i class="fas fa-cubes me-2 text-light"></i> Total Dining Tables</td>
+                                    <td class="text-end fw-bold text-light" th:text="${analytics.availableTables + analytics.occupiedTables}">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const hourlyData = /*[[${analytics.hourlyVisits}]]*/ [];
+    const seatedCount = /*[[${analytics.seatedCount}]]*/ 0;
+    const cancelledCount = /*[[${analytics.cancelledCount}]]*/ 0;
+    const skippedCount = /*[[${analytics.skippedCount}]]*/ 0;
+    const waitingCount = /*[[${analytics.waitingCount}]]*/ 0;
+
+    const resSeated = /*[[${analytics.seatedReservations}]]*/ 0;
+    const resConfirmed = /*[[${analytics.confirmedReservations}]]*/ 0;
+    const resPending = /*[[${analytics.pendingReservations}]]*/ 0;
+    const resCancelled = /*[[${analytics.cancelledReservations}]]*/ 0;
+    const resNoShow = /*[[${analytics.noShowReservations}]]*/ 0;
+    /*]]>*/
+
+    // Common Chart Defaults for Dark Theme
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+
+    // 1. Hourly Traffic Bar Chart
+    const hoursLabels = [
+        '12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM',
+        '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM',
+        '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM',
+        '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'
+    ];
+
+    const ctxBar = document.getElementById('hourlyBarChart');
+    if (ctxBar) {
+        new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: hoursLabels,
+                datasets: [{
+                    label: 'Customers Joined',
+                    data: hourlyData,
+                    backgroundColor: 'rgba(249, 115, 22, 0.75)',
+                    hoverBackgroundColor: '#f97316',
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#e2e8f0',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 10
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Queue Status Doughnut Chart
+    const ctxDoughnut1 = document.getElementById('queueStatusDoughnut');
+    if (ctxDoughnut1) {
+        const total = seatedCount + cancelledCount + skippedCount + waitingCount;
+        new Chart(ctxDoughnut1, {
+            type: 'doughnut',
+            data: {
+                labels: ['Seated', 'Waiting', 'Cancelled', 'Skipped'],
+                datasets: [{
+                    data: total > 0 ? [seatedCount, waitingCount, cancelledCount, skippedCount] : [0, 0, 0, 0],
+                    backgroundColor: [
+                        '#22c55e', // green
+                        '#38bdf8', // cyan
+                        '#ef4444', // red
+                        '#64748b'  // grey
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#1e293b'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 15 }
+                    }
+                },
+                cutout: '68%'
+            }
+        });
+    }
+
+    // 3. Reservations Doughnut Chart
+    const ctxDoughnut2 = document.getElementById('reservationsDoughnut');
+    if (ctxDoughnut2) {
+        const totalRes = resSeated + resConfirmed + resPending + resCancelled + resNoShow;
+        new Chart(ctxDoughnut2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Seated', 'Confirmed', 'Pending', 'Cancelled', 'No-Show'],
+                datasets: [{
+                    data: totalRes > 0 ? [resSeated, resConfirmed, resPending, resCancelled, resNoShow] : [0, 0, 0, 0, 0],
+                    backgroundColor: [
+                        '#10b981', // green
+                        '#3b82f6', // blue
+                        '#f59e0b', // amber
+                        '#ef4444', // red
+                        '#64748b'  // slate
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#1e293b'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 15 }
+                    }
+                },
+                cutout: '68%'
+            }
+        });
+    }
+</script>
+</body>
+</html>

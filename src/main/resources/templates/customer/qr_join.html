@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${restaurant.name} + ' — Join Queue'">Restaurant Queue</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .qr-header-card {
+            background: linear-gradient(135deg, rgba(255, 90, 95, 0.12), rgba(255, 140, 66, 0.08));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+        .stat-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            text-align: center;
+            min-width: 120px;
+        }
+        .stat-badge-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.1;
+        }
+        .stat-badge-lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+        .anonymized-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body style="min-height: 100vh; background: var(--bg-primary); display: flex; flex-direction: column;">
+
+<nav class="navbar navbar-dark" style="background: rgba(20, 24, 33, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);">
+    <div class="container d-flex justify-content-between align-items-center">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+            <span style="font-size: 1.4rem;">🍽️</span>
+            <span style="font-weight: 700; color: var(--text-primary); letter-spacing: -0.5px;">RestaurantQueue</span>
+        </a>
+        <a th:href="@{/r/{slug}/print(slug=${restaurant.slug})}" target="_blank" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-qrcode"></i> Print QR Standee
+        </a>
+    </div>
+</nav>
+
+<div class="container py-4 flex-grow-1" style="max-width: 860px;">
+
+    <!-- Restaurant Header Card -->
+    <div class="qr-header-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <span class="badge bg-warning text-dark mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px; font-weight: 600;">
+                    <i class="fas fa-qrcode"></i> DIGITAL QUEUE
+                </span>
+                <h2 style="font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.35rem;" th:text="${restaurant.name}">
+                    Main Branch
+                </h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;">
+                    Scan or save your token to track queue progress live from anywhere.
+                </p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <div class="stat-badge">
+                        <div class="stat-badge-val" id="waitingCountVal" th:text="${waitingCount}">0</div>
+                        <div class="stat-badge-lbl">Waiting</div>
+                    </div>
+                    <div class="stat-badge">
+                        <div class="stat-badge-val" id="nowServingVal" style="color: #4ade80;"
+                             th:text="${currentlyCalled != null ? currentlyCalled.tokenNumber : '—'}">—</div>
+                        <div class="stat-badge-lbl">Now Serving</div>
+                    </div>
+                    <div class="stat-badge">
+                        <div class="stat-badge-val" id="estWaitVal" style="color: #60a5fa;" th:text="${estimatedWaitMins + 'm'}">0m</div>
+                        <div class="stat-badge-lbl">Est. Wait</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center mt-3 mt-md-0">
+                <img th:src="${qrBase64}" alt="Restaurant QR" style="width: 140px; height: 140px; border-radius: 12px; border: 2px solid var(--border); background: white; padding: 4px;" />
+                <div class="text-muted mt-2" style="font-size: 0.75rem;">Restaurant QR Code</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Form -->
+    <div class="card mb-4" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+        <h3 style="font-weight: 700; color: var(--text-primary); font-size: 1.4rem; margin-bottom: 0.5rem;">
+            <i class="fas fa-ticket-alt" style="color: var(--primary);"></i> Get Your Queue Token
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem;">
+            Enter your details below. You will be given a live tracking link with your ticket.
+        </p>
+
+        <form th:action="@{/r/{slug}/join(slug=${restaurant.slug})}" th:object="${joinRequest}" method="post">
+            <div class="mb-3">
+                <label for="customerName" class="form-label" style="font-size: 0.88rem; color: var(--text-muted);">
+                    <i class="fas fa-user" style="color: var(--primary);"></i> Full Name
+                </label>
+                <input type="text"
+                       class="form-control"
+                       id="customerName"
+                       th:field="*{customerName}"
+                       placeholder="e.g. Rahul Sharma"
+                       th:classappend="${#fields.hasErrors('customerName')} ? 'is-invalid' : ''"
+                       required>
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('customerName')}" th:errors="*{customerName}"></div>
+            </div>
+
+            <div class="mb-3">
+                <label for="mobile" class="form-label" style="font-size: 0.88rem; color: var(--text-muted);">
+                    <i class="fas fa-mobile-alt" style="color: var(--primary);"></i> Mobile Number (10 digits)
+                </label>
+                <input type="tel"
+                       class="form-control"
+                       id="mobile"
+                       th:field="*{mobile}"
+                       placeholder="e.g. 9876543210"
+                       maxlength="10"
+                       th:classappend="${#fields.hasErrors('mobile')} ? 'is-invalid' : ''"
+                       required>
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('mobile')}" th:errors="*{mobile}"></div>
+            </div>
+
+            <div class="mb-4">
+                <label for="partySize" class="form-label" style="font-size: 0.88rem; color: var(--text-muted);">
+                    <i class="fas fa-users" style="color: var(--primary);"></i> Number of Guests
+                </label>
+                <select class="form-select" id="partySize" th:field="*{partySize}" required>
+                    <option value="">Select party size</option>
+                    <option th:each="i : ${#numbers.sequence(1, 10)}"
+                            th:value="${i}"
+                            th:text="${i == 1 ? '1 Person' : i + ' People'}">1 Person</option>
+                </select>
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('partySize')}" th:errors="*{partySize}"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2" style="background: var(--primary); border: none; font-weight: 700; font-size: 1.05rem; border-radius: 10px;">
+                <i class="fas fa-ticket-alt"></i> Get My Token
+            </button>
+
+            <div class="text-center mt-3">
+                <a th:href="@{/r/{slug}/reserve(slug=${restaurant.slug})}" class="btn btn-outline-warning w-100 py-2" style="border-radius: 10px; font-weight: 600;">
+                    <i class="fas fa-calendar-alt me-1"></i> Planning Ahead? Book a Table Reservation
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Anonymized Live Waiting List (Privacy-Safe: Tokens Only) -->
+    <div class="card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0;">
+                <i class="fas fa-stream" style="color: var(--primary);"></i> Live Queue Status
+            </h5>
+            <span class="text-muted" style="font-size: 0.78rem;">
+                <i class="fas fa-shield-alt text-success"></i> Anonymized for customer privacy
+            </span>
+        </div>
+
+        <div id="activeQueueContainer">
+            <div th:if="${activeQueue.isEmpty()}" id="emptyQueueMsg" class="text-center py-4 text-muted">
+                <div style="font-size: 2rem;">🎉</div>
+                <div style="font-weight: 600;">No line right now!</div>
+                <div style="font-size: 0.85rem;">Tables are currently available.</div>
+            </div>
+
+            <div id="activeQueueBadges" th:unless="${activeQueue.isEmpty()}" class="d-flex flex-wrap gap-2">
+                <div th:each="entry, stat : ${activeQueue}"
+                     class="anonymized-badge">
+                    <span style="font-weight: 700; color: var(--primary);" th:text="${entry.tokenNumber}">A-01</span>
+                    <span class="text-muted" style="font-size: 0.75rem;" th:text="'(' + ${entry.partySize} + ' guests)'">(2 guests)</span>
+                    <span th:if="${entry.status.name() == 'CALLED'}" class="badge bg-success" style="font-size: 0.65rem;">CALLED</span>
+                    <span th:if="${entry.status.name() == 'WAITING'}" class="badge bg-secondary" style="font-size: 0.65rem;"
+                          th:text="'#' + ${stat.count}">#1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<footer class="text-center py-3 text-muted" style="font-size: 0.8rem; border-top: 1px solid var(--border);">
+    Restaurant Queue Management System &copy; 2026
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const restaurantSlug = '[[${restaurant.slug}]]';
+    let pollInterval = 7000;
+
+    async function pollRestaurantSummary() {
+        try {
+            const res = await fetch(`/api/r/${encodeURIComponent(restaurantSlug)}/summary`);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            // Update stats
+            const waitEl = document.getElementById('waitingCountVal');
+            const servingEl = document.getElementById('nowServingVal');
+            const estEl = document.getElementById('estWaitVal');
+
+            if (waitEl) waitEl.textContent = data.waitingCount;
+            if (servingEl) servingEl.textContent = data.currentlyCalledToken || '—';
+            if (estEl) estEl.textContent = data.estimatedWaitMins + 'm';
+
+            // Update badges container
+            const container = document.getElementById('activeQueueContainer');
+            if (!container) return;
+
+            if (!data.activeEntries || data.activeEntries.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <div style="font-size: 2rem;">🎉</div>
+                        <div style="font-weight: 600;">No line right now!</div>
+                        <div style="font-size: 0.85rem;">Tables are currently available.</div>
+                    </div>
+                `;
+            } else {
+                let html = '<div class="d-flex flex-wrap gap-2">';
+                let waitingIndex = 1;
+                data.activeEntries.forEach(entry => {
+                    const isCalled = entry.status === 'CALLED';
+                    const badgeTag = isCalled
+                        ? '<span class="badge bg-success" style="font-size: 0.65rem;">CALLED</span>'
+                        : `<span class="badge bg-secondary" style="font-size: 0.65rem;">#${waitingIndex++}</span>`;
+
+                    html += `
+                        <div class="anonymized-badge">
+                            <span style="font-weight: 700; color: var(--primary);">${entry.tokenNumber}</span>
+                            <span class="text-muted" style="font-size: 0.75rem;">(${entry.partySize} guests)</span>
+                            ${badgeTag}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+        } catch (e) {
+            console.warn("Failed to poll summary:", e);
+        }
+    }
+
+    setInterval(pollRestaurantSummary, pollInterval);
+</script>
+</body>
+</html>

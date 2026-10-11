@@ -25,9 +25,25 @@ public class TableManagementService {
         this.tableRepository = tableRepository;
     }
 
+    /** Returns all tables for a specific restaurant. */
+    public List<RestaurantTable> getAllTables(Long restaurantId) {
+        if (restaurantId == null) {
+            return getAllTables();
+        }
+        return tableRepository.findByRestaurantId(restaurantId);
+    }
+
     /** Returns all tables. */
     public List<RestaurantTable> getAllTables() {
         return tableRepository.findAll();
+    }
+
+    /** Returns available tables with sufficient capacity for the party in a specific restaurant. */
+    public List<RestaurantTable> getAvailableTablesForParty(Long restaurantId, int partySize) {
+        if (restaurantId == null) {
+            return getAvailableTablesForParty(partySize);
+        }
+        return tableRepository.findByRestaurantIdAndCapacityGreaterThanEqualAndStatus(restaurantId, partySize, TableStatus.AVAILABLE);
     }
 
     /** Returns available tables with sufficient capacity for the party. */
@@ -35,11 +51,14 @@ public class TableManagementService {
         return tableRepository.findByCapacityGreaterThanEqualAndStatus(partySize, TableStatus.AVAILABLE);
     }
 
-    /** Assigns a table (marks it OCCUPIED). */
+    /** Assigns a table (marks it OCCUPIED) with restaurant isolation. */
     @Transactional
-    public void assignTable(Long tableId) {
-        RestaurantTable table = tableRepository.findById(tableId)
-                .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId));
+    public void assignTable(Long restaurantId, Long tableId) {
+        RestaurantTable table = (restaurantId != null)
+                ? tableRepository.findByIdAndRestaurantId(tableId, restaurantId)
+                        .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId))
+                : tableRepository.findById(tableId)
+                        .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId));
 
         if (table.getStatus() != TableStatus.AVAILABLE) {
             throw new TableNotAvailableException("Table " + table.getTableNumber() + " is already occupied.");
@@ -49,11 +68,19 @@ public class TableManagementService {
         tableRepository.save(table);
     }
 
-    /** Releases a table (marks it AVAILABLE). */
     @Transactional
-    public void releaseTable(Long tableId) {
-        RestaurantTable table = tableRepository.findById(tableId)
-                .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId));
+    public void assignTable(Long tableId) {
+        assignTable(null, tableId);
+    }
+
+    /** Releases a table (marks it AVAILABLE) with restaurant isolation. */
+    @Transactional
+    public void releaseTable(Long restaurantId, Long tableId) {
+        RestaurantTable table = (restaurantId != null)
+                ? tableRepository.findByIdAndRestaurantId(tableId, restaurantId)
+                        .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId))
+                : tableRepository.findById(tableId)
+                        .orElseThrow(() -> new TableNotAvailableException("Table not found with ID: " + tableId));
 
         if (table.getStatus() != TableStatus.OCCUPIED) {
             throw new TableNotAvailableException("Table " + table.getTableNumber() + " is not currently occupied.");
@@ -61,5 +88,10 @@ public class TableManagementService {
 
         table.setStatus(TableStatus.AVAILABLE);
         tableRepository.save(table);
+    }
+
+    @Transactional
+    public void releaseTable(Long tableId) {
+        releaseTable(null, tableId);
     }
 }

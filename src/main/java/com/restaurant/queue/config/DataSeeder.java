@@ -32,12 +32,15 @@ public class DataSeeder {
                 admin.setUsername("admin");
                 admin.setPassword(passwordEncoder.encode("admin123"));
                 admin.setRole("ADMIN");
+                admin.setActive(true);
                 admin.setCreatedAt(LocalDateTime.now());
 
                 User staff = new User();
                 staff.setUsername("staff");
                 staff.setPassword(passwordEncoder.encode("staff123"));
                 staff.setRole("STAFF");
+                staff.setRestaurantId(1L);
+                staff.setActive(true);
                 staff.setCreatedAt(LocalDateTime.now());
 
                 userRepository.saveAll(List.of(admin, staff));
@@ -67,6 +70,7 @@ public class DataSeeder {
         t.setTableNumber(number);
         t.setCapacity(capacity);
         t.setStatus(status);
+        t.setRestaurantId(1L);
         return t;
     }
 }

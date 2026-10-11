@@ -20,6 +20,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
@@ -32,8 +33,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/queue/**", "/css/**", "/js/**", "/images/**", "/error").permitAll()
-                .requestMatchers("/admin/**").authenticated()
+                .requestMatchers("/", "/queue/**", "/r/**", "/reservations/**", "/api/queue/**", "/api/r/**", "/css/**", "/js/**", "/images/**", "/error").permitAll()
+                .requestMatchers("/admin/restaurants/**", "/admin/staff/**").hasRole("ADMIN")
+                .requestMatchers("/admin/**", "/api/admin/**").hasAnyRole("ADMIN", "STAFF")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

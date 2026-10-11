@@ -42,6 +42,9 @@ public class QueueEntry {
     @Column(name = "seated_time")
     private LocalDateTime seatedTime;
 
+    @Column(name = "restaurant_id")
+    private Long restaurantId;
+
     // ============================================================
     // Constructors
     // ============================================================
@@ -77,4 +80,7 @@ public class QueueEntry {
 
     public LocalDateTime getSeatedTime() { return seatedTime; }
     public void setSeatedTime(LocalDateTime seatedTime) { this.seatedTime = seatedTime; }
+
+    public Long getRestaurantId() { return restaurantId; }
+    public void setRestaurantId(Long restaurantId) { this.restaurantId = restaurantId; }
 }

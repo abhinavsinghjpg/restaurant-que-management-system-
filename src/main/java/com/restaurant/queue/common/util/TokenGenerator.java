@@ -20,13 +20,32 @@ public class TokenGenerator {
     }
 
     /**
-     * Generates the next token for today's queue.
-     * Format: A-01, A-02, ..., A-99
+     * Generates the next unique token for the queue.
+     * Starts from today's count + 1 and guarantees uniqueness.
      */
-    public String generateToken() {
+    public synchronized String generateToken() {
+        return generateToken(1L);
+    }
+
+    /**
+     * Generates the next unique token for a specific restaurant's queue.
+     * Uses a restaurant prefix (A for R1, B for R2, etc.) and guarantees uniqueness.
+     */
+    public synchronized String generateToken(Long restaurantId) {
+        if (restaurantId == null || restaurantId < 1) {
+            restaurantId = 1L;
+        }
+        char prefix = (char) ('A' + (int) ((restaurantId - 1) % 26));
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        long countToday = queueEntryRepository.countTodaysEntries(startOfDay);
+        long countToday = queueEntryRepository.countTodaysEntriesByRestaurant(restaurantId, startOfDay);
         int nextNumber = (int) (countToday + 1);
-        return String.format("A-%02d", nextNumber);
+
+        while (true) {
+            String candidate = String.format("%c-%02d", prefix, nextNumber);
+            if (queueEntryRepository.findByTokenNumber(candidate).isEmpty()) {
+                return candidate;
+            }
+            nextNumber++;
+        }
     }
 }

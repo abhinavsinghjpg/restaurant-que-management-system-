@@ -28,6 +28,36 @@ public class DashboardService {
         this.tableRepository = tableRepository;
     }
 
+    public DashboardStatsResponse getStats(Long restaurantId) {
+        if (restaurantId == null) {
+            return getStats();
+        }
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        DashboardStatsResponse stats = new DashboardStatsResponse();
+
+        stats.setCustomersServedToday(
+                queueEntryRepository.countByRestaurantIdAndStatusAndDate(restaurantId, QueueStatus.SEATED, startOfDay, endOfDay));
+
+        stats.setCurrentlyWaiting(queueEntryRepository.countByRestaurantIdAndStatus(restaurantId, QueueStatus.WAITING));
+        stats.setCurrentlyCalled(queueEntryRepository.countByRestaurantIdAndStatus(restaurantId, QueueStatus.CALLED));
+
+        stats.setSkippedToday(
+                queueEntryRepository.countByRestaurantIdAndStatusAndDate(restaurantId, QueueStatus.SKIPPED, startOfDay, endOfDay));
+        stats.setCancelledToday(
+                queueEntryRepository.countByRestaurantIdAndStatusAndDate(restaurantId, QueueStatus.CANCELLED, startOfDay, endOfDay));
+
+        List<QueueEntry> seatedToday = queueEntryRepository.findSeatedTodayFromByRestaurant(restaurantId, startOfDay);
+        long avgWait = calculateAvgWaitMinutes(seatedToday);
+        stats.setAvgWaitingTimeMinutes(avgWait);
+
+        stats.setAvailableTables(tableRepository.countByRestaurantIdAndStatus(restaurantId, TableStatus.AVAILABLE));
+        stats.setOccupiedTables(tableRepository.countByRestaurantIdAndStatus(restaurantId, TableStatus.OCCUPIED));
+
+        return stats;
+    }
+
     public DashboardStatsResponse getStats() {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);

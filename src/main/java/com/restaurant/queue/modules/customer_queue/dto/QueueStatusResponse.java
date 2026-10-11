@@ -16,10 +16,18 @@ public class QueueStatusResponse {
     private long position;          // people ahead (WAITING count before this entry)
     private int estimatedWaitMins;  // position × avgServiceTime
     private LocalDateTime joinTime;
+    private String restaurantName;
+    private String restaurantSlug;
 
     // ============================================================
     // Getters & Setters
     // ============================================================
+
+    public String getRestaurantName() { return restaurantName; }
+    public void setRestaurantName(String restaurantName) { this.restaurantName = restaurantName; }
+
+    public String getRestaurantSlug() { return restaurantSlug; }
+    public void setRestaurantSlug(String restaurantSlug) { this.restaurantSlug = restaurantSlug; }
 
     public String getTokenNumber() { return tokenNumber; }
     public void setTokenNumber(String tokenNumber) { this.tokenNumber = tokenNumber; }

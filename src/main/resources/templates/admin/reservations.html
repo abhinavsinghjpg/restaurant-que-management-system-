@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservations — Restaurant Queue System</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="admin-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            🍽️ Restaurant<span>Queue</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            <a href="/admin/queue" class="nav-item">
+                <i class="fas fa-list-ol"></i> Live Queue
+            </a>
+            <a href="/admin/tables" class="nav-item">
+                <i class="fas fa-chair"></i> Tables
+            </a>
+            <a href="/admin/reservations" class="nav-item active">
+                <i class="fas fa-calendar-alt"></i> Reservations
+            </a>
+            <div th:if="${isAdmin}" class="sidebar-section-divider"></div>
+            <a th:if="${isAdmin}" href="/admin/restaurants" class="nav-item">
+                <i class="fas fa-store"></i> Restaurants
+            </a>
+            <a th:if="${isAdmin}" href="/admin/staff" class="nav-item">
+                <i class="fas fa-users-cog"></i> Staff Accounts
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+            <div>
+                <h1 class="page-title d-flex align-items-center gap-2">
+                    <i class="fas fa-calendar-check text-warning"></i> Table Reservations
+                </h1>
+                <p class="page-subtitle">Manage customer bookings, table assignments, and dining schedules.</p>
+            </div>
+
+            <!-- Admin Restaurant Switcher -->
+            <div th:if="${isAdmin and allRestaurants != null}" class="d-flex align-items-center gap-2">
+                <label class="text-muted small mb-0">Restaurant:</label>
+                <select class="form-select form-select-sm" style="width: auto; background: var(--bg-card); color: var(--text-primary); border-color: var(--border);"
+                        onchange="location.href='/admin/reservations?restaurantId=' + this.value">
+                    <option th:each="r : ${allRestaurants}"
+                            th:value="${r.id}"
+                            th:text="${r.name}"
+                            th:selected="${r.id == currentRestaurantId}">Main Branch</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Flash messages -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
+            <i class="fas fa-check-circle me-1"></i> <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-3">
+            <i class="fas fa-exclamation-circle me-1"></i> <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- Filters Bar -->
+        <div class="card mb-4" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem;">
+            <form method="get" action="/admin/reservations" class="row g-3 align-items-end">
+                <input type="hidden" name="restaurantId" th:if="${currentRestaurantId != null}" th:value="${currentRestaurantId}">
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted small mb-1"><i class="fas fa-calendar me-1"></i> Filter Date</label>
+                    <input type="date" name="date" class="form-control form-control-sm"
+                           th:value="${selectedDate}"
+                           style="background: var(--bg-dark); border-color: var(--border); color: var(--text-primary);">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted small mb-1"><i class="fas fa-filter me-1"></i> Status</label>
+                    <select name="status" class="form-select form-select-sm"
+                            style="background: var(--bg-dark); border-color: var(--border); color: var(--text-primary);">
+                        <option value="">All Statuses</option>
+                        <option th:each="st : ${allStatuses}"
+                                th:value="${st}"
+                                th:text="${st}"
+                                th:selected="${st == selectedStatus}">PENDING</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm px-3">
+                        <i class="fas fa-search me-1"></i> Apply Filter
+                    </button>
+                    <a th:href="@{/admin/reservations(restaurantId=${currentRestaurantId})}" class="btn btn-outline-light btn-sm">
+                        Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Reservations List Table -->
+        <div class="rq-card" style="padding: 0; overflow: hidden;">
+            <div th:if="${reservations.isEmpty()}" style="padding: 3.5rem; text-align: center; color: var(--text-muted);">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📅</div>
+                <div style="font-weight: 600; font-size: 1.1rem;">No reservations found</div>
+                <div style="font-size: 0.88rem;">No bookings match the selected filters.</div>
+            </div>
+
+            <div class="table-responsive" th:unless="${reservations.isEmpty()}">
+                <table class="rq-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ref #</th>
+                            <th>Customer &amp; Contact</th>
+                            <th>Party</th>
+                            <th>Date &amp; Time</th>
+                            <th>Special Requests</th>
+                            <th>Assigned Table</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="res : ${reservations}">
+                            <td>
+                                <strong style="color: var(--primary);" th:text="'#RES-' + ${res.id}">#RES-1</strong>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;" th:text="${res.customerName}">Name</div>
+                                <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><span th:text="${res.mobile}">Phone</span></small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-light border border-secondary-subtle">
+                                    <i class="fas fa-users me-1"></i><span th:text="${res.partySize}">2</span>
+                                </span>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;" th:text="${#temporals.format(res.reservationTime, 'dd MMM yyyy')}">Date</div>
+                                <small class="text-warning"><i class="fas fa-clock me-1"></i><span th:text="${#temporals.format(res.reservationTime, 'hh:mm a')}">Time</span></small>
+                            </td>
+                            <td>
+                                <small class="text-muted" th:text="${res.specialRequests != null and !#strings.isEmpty(res.specialRequests) ? res.specialRequests : '—'}">—</small>
+                            </td>
+                            <td>
+                                <!-- Assign Table Form -->
+                                <form th:action="@{/admin/reservations/{id}/assign-table(id=${res.id})}" method="post" class="d-flex gap-1 align-items-center">
+                                    <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}">
+                                    <select name="tableId" class="form-select form-select-sm" style="max-width: 140px; font-size: 0.8rem; background: var(--bg-dark); color: var(--text-primary); border-color: var(--border);">
+                                        <option value="">None</option>
+                                        <th:block th:each="t : ${tables}">
+                                            <option th:value="${t.id}"
+                                                    th:text="${t.tableNumber} + ' (cap: ' + ${t.capacity} + ')'"
+                                                    th:selected="${res.assignedTableId == t.id}"></option>
+                                        </th:block>
+                                    </select>
+                                    <button type="submit" class="btn btn-outline-info btn-sm py-0 px-2" title="Assign table">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <span th:if="${res.status.name() == 'PENDING'}" class="badge bg-warning text-dark">PENDING</span>
+                                <span th:if="${res.status.name() == 'CONFIRMED'}" class="badge bg-success">CONFIRMED</span>
+                                <span th:if="${res.status.name() == 'SEATED'}" class="badge bg-info">SEATED</span>
+                                <span th:if="${res.status.name() == 'CANCELLED'}" class="badge bg-danger">CANCELLED</span>
+                                <span th:if="${res.status.name() == 'NO_SHOW'}" class="badge bg-secondary">NO SHOW</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <!-- Confirm -->
+                                    <form th:if="${res.status.name() == 'PENDING'}" th:action="@{/admin/reservations/{id}/status(id=${res.id})}" method="post" style="display:inline;">
+                                        <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}">
+                                        <input type="hidden" name="newStatus" value="CONFIRMED">
+                                        <button type="submit" class="btn btn-outline-success btn-sm me-1" title="Confirm Reservation">
+                                            <i class="fas fa-check-circle"></i> Confirm
+                                        </button>
+                                    </form>
+
+                                    <!-- Seat -->
+                                    <form th:if="${res.status.name() == 'CONFIRMED' or res.status.name() == 'PENDING'}" th:action="@{/admin/reservations/{id}/status(id=${res.id})}" method="post" style="display:inline;">
+                                        <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}">
+                                        <input type="hidden" name="newStatus" value="SEATED">
+                                        <button type="submit" class="btn btn-outline-primary btn-sm me-1" title="Mark Seated">
+                                            <i class="fas fa-chair"></i> Seat
+                                        </button>
+                                    </form>
+
+                                    <!-- Cancel -->
+                                    <form th:if="${res.status.name() == 'PENDING' or res.status.name() == 'CONFIRMED'}" th:action="@{/admin/reservations/{id}/status(id=${res.id})}" method="post" style="display:inline;"
+                                          onsubmit="return confirm('Cancel this reservation?')">
+                                        <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}">
+                                        <input type="hidden" name="newStatus" value="CANCELLED">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm me-1" title="Cancel">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+
+                                    <!-- No Show -->
+                                    <form th:if="${res.status.name() == 'CONFIRMED' or res.status.name() == 'PENDING'}" th:action="@{/admin/reservations/{id}/status(id=${res.id})}" method="post" style="display:inline;"
+                                          onsubmit="return confirm('Mark as No Show?')">
+                                        <input type="hidden" name="restaurantId" th:value="${currentRestaurantId}">
+                                        <input type="hidden" name="newStatus" value="NO_SHOW">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm" title="No Show">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -24,10 +24,13 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User not found: " + username));
 
+        boolean enabled = user.getActive() == null || user.getActive();
+
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
                 .roles(user.getRole().replace("ROLE_", "")) // Spring adds ROLE_ prefix
+                .disabled(!enabled)
                 .build();
     }
 }

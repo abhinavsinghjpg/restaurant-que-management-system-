@@ -1,0 +1,208 @@
+# FINAL SCOPE DECISION — QR-FIRST MULTI-RESTAURANT (OVERRIDES CONFLICTING SECTIONS)
+
+**Approved design:** One Spring Boot modular-monolith application, one SQLite database, multiple restaurants with separate queues, and one unique QR code per restaurant. **No public restaurant directory, no customer restaurant search, and no generic customer home page for choosing restaurants.** Customer entry is by scanning the restaurant's QR code (or opening its direct QR URL). The QR opens a public page showing that restaurant's current queue summary and a form to generate a token. Customer can then track their token automatically.
+
+A minimal internal `Restaurant` record (unique ID/public QR slug, status, optional display name, etc.) **is required** for data ownership, staff assignment, admin management, and isolation. The restaurant name need not be part of public search or a customer selection flow. Keep names only if operationally useful for admins/staff. QR URLs must contain an unguessable or stable public identifier, **not a secret credential**. Do not expose private customer details in the public waiting list: show anonymized tokens and positions only.
+
+**Roles:** Admin can manage restaurants and staff; staff can manage only authorized restaurant queues/orders; customers can join and track their own token without staff login. Maintain current login behavior while extending permissions safely.
+
+**Other approved features:** staff queue advance/skip/no-show/reorder with audit history; served tokens leave the active queue but are retained for analytics; auto-refresh/polling; reservations; bar/pie analytics; demo menu and basic food-order workflow; incremental UI improvements. Implement in tested phases and preserve existing SQLite records. **Do not migrate databases or rewrite working code.**
+
+**Conflict rule:** This final scope decision supersedes any older text in this document or existing PRD/prompt calling for public restaurant discovery, name search, or a restaurant-selection home page.
+
+---
+
+You are upgrading my existing Restaurant Queue Management System for a strong college project.
+
+## First: inspect, do not rewrite
+Inspect the actual repository before editing. Confirm the current Java/Spring Boot version, Maven dependencies, SQLite configuration, entity mappings, security rules, routes, templates, and working features. The application already has working functionality. Preserve it.
+
+## Fixed technical decisions
+- Java 17
+- Existing Spring Boot + Maven application
+- Spring MVC and Thymeleaf
+- Existing Spring Security and Spring Data JPA/Hibernate setup
+- SQLite remains the database
+- Modular monolith architecture
+- Improve the existing UI incrementally
+- Do not migrate to PostgreSQL or another database
+
+## Existing features to preserve
+The current application includes authentication, customer queue joining/status, queue management, table management, and dashboard functionality. Verify the exact implementation in the repository. Do not delete or casually rewrite these features.
+
+## Features to add
+1. Multi-restaurant support with strict restaurant-level data isolation.
+2. QR-based public queue joining for each restaurant.
+3. Automatic queue status refresh for customers and staff.
+4. Reservations with validation, status management, and conflict prevention.
+5. Analytics for queue volume, waiting time, peak hours, outcomes, and reservations.
+6. Improve existing UI for usability and mobile responsiveness without replacing the whole interface.
+
+## Architecture requirements
+Keep one deployable Spring Boot application. Maintain clear feature modules. Adapt to existing packages rather than moving every file just for naming consistency. Suggested boundaries:
+- authentication
+- restaurant_management
+- customer_queue
+- queue_management
+- table_management
+- reservations
+- qr_access
+- dashboard
+- common
+
+Keep business logic in services, data access in repositories, request/response handling in controllers, and validation on the server. Avoid duplicated business rules and unnecessary abstractions.
+
+## SQLite safety requirements
+- Keep the current SQLite JDBC URL, driver, dialect, and application configuration unless inspection proves a minimal correction is required.
+- Do not replace SQLite with PostgreSQL.
+- Back up `restaurant_queue.db` before schema changes.
+- Inspect current tables and data before altering entity mappings.
+- Never use `ddl-auto=create` or `create-drop`.
+- Never reset, overwrite, or silently discard existing records.
+- Use safe, repeatable schema changes and explain them.
+- Add suitable foreign keys and indexes where appropriate.
+- Keep SQLite write transactions short. Handle busy/locked errors where practical.
+- Document the database file path and how to back it up.
+- Do not promise that SQLite supports high-concurrency multi-instance deployment.
+
+## Multi-restaurant requirements
+- Introduce a Restaurant model and safe assignment/backfill for existing records.
+- Associate restaurant-owned data with the correct restaurant.
+- Enforce restaurant authorization in service/controller logic and every relevant repository query.
+- Do not trust a restaurant ID supplied by a browser without authorization.
+- Ensure staff from one restaurant cannot access another restaurant's queues, tables, reservations, history, or analytics by editing a URL or request.
+- Keep existing single-restaurant workflows working.
+
+## QR requirements
+- Generate a QR code for each restaurant's public queue page.
+- Encode a normal application URL, not secret data.
+- Make a print-friendly QR page.
+- Scanning the QR should let a customer join the correct restaurant's queue and receive a token/status link.
+- Validate invalid or inactive restaurant links and prevent duplicate form submissions.
+- Use a suitable maintained QR library only if needed; avoid unrelated dependency changes.
+
+## Real-time requirements
+- Prefer lightweight polling initially unless the repository already has a suitable SSE/WebSocket implementation.
+- Add a small, authorized endpoint for the current queue/status data.
+- Refresh customer and staff pages automatically at a reasonable interval.
+- Include graceful error and last-updated states.
+- The server remains authoritative for queue ordering and status.
+- Do not expose unnecessary personal information through the endpoint.
+
+## Reservation requirements
+- Let customers request a reservation with date, time, party size, and required contact details.
+- Let authorized staff list, filter, confirm, cancel, complete, or mark no-show.
+- Validate input and reject past dates and invalid party sizes.
+- Define availability/capacity rules explicitly.
+- Prevent overlapping assignments to the same table or capacity slot.
+- Use server-side transactional validation and keep SQLite write transactions short.
+- Keep reservations distinct from walk-in queue entries while making staff operations coherent.
+
+## Analytics requirements
+- Add restaurant-scoped date filtering.
+- Calculate metrics only from fields the database actually stores.
+- Include queue volume, average/median waiting time when supportable, peak hours, completed/cancelled/no-show counts, and reservation metrics.
+- Show clear metric definitions and empty states.
+- Never leak cross-restaurant data.
+- Verify calculations against a small known test dataset.
+
+## UI requirements
+- Improve the current UI instead of replacing every page.
+- Improve typography, spacing, navigation, responsive tables/forms, status badges, empty states, and success/error feedback.
+- Make customer queue and reservation flows mobile-friendly.
+- Preserve useful existing styling and navigation where practical.
+- Use accessible labels, keyboard-friendly controls, and readable contrast.
+
+## Mandatory phased workflow
+### Phase 0: Baseline
+Inspect the repository, run the existing build/tests, document the current architecture and routes, back up SQLite, and add focused tests around current behavior. Report pre-existing failures.
+
+### Phase 1: Multi-restaurant foundation
+Implement restaurant ownership, safe handling of existing records, restaurant-scoped queries, and authorization. Test isolation before proceeding.
+
+### Phase 2: QR queue joining
+Implement restaurant-specific QR links, print view, queue integration, validation, and tests.
+
+### Phase 3: Real-time updates
+Implement the authorized status endpoint and polling UI. Test permission boundaries and failures.
+
+### Phase 4: Reservations
+Implement data model, validation, customer flow, staff flow, conflict prevention, and tests.
+
+### Phase 5: Analytics
+Implement defined metrics, date filters, dashboard presentation, and known-value tests.
+
+### Phase 6: UI polish and release verification
+Improve existing templates, run all tests and a clean build, test both a fresh SQLite database and an upgrade of the existing database, and update README setup/backup/demo instructions.
+
+## Rules for every phase
+- Do not attempt a giant one-shot rewrite.
+- Do not remove working functionality.
+- Do not silently change the database.
+- After each phase, run the relevant tests and Maven build.
+- List files changed, explain schema changes, show test/build results, and note remaining limitations.
+- If a destructive migration or high-impact design decision is required, stop and ask before proceeding.
+- Keep the app runnable after each phase.
+- Begin with Phase 0 only. Report findings and proposed schema changes before implementing Phase 1.
+
+## Final acceptance criteria
+The app continues to use SQLite; all original functionality works; multi-restaurant data isolation is enforced; QR queue joining, automatic updates, reservations, and analytics work end to end; existing data is preserved; tests/build pass or pre-existing failures are clearly reported; and the README explains how to run and demonstrate the project.
+
+
+## Additional user-requested features
+
+Add these to the existing plan without changing the SQLite decision:
+
+
+### Admin role and staff accounts
+- The project currently lacks a dedicated admin role. Inspect the existing security model and add an explicit ADMIN role alongside STAFF.
+- Admin can add, edit permitted details, assign, and deactivate/delete staff safely.
+- Enforce authorization on the server. Staff must not access admin routes or grant roles.
+- Preserve existing accounts and password-encoding practices. Prefer deactivation over destructive deletion when history references the account.
+
+### Staff queue operations
+- Staff can advance the queue, mark absent customers as NO_SHOW/SKIPPED, and move a token backward/forward only through validated actions.
+- Confirm disruptive actions and record all transitions in queue history.
+- Do not let staff permanently delete served or skipped token records.
+
+### Automatic active-queue cleanup
+- Once a token is served/completed, automatically exclude it from the active queue view.
+- Preserve its database record with status and completion timestamp for audit and analytics.
+- Make completion idempotent. If orders are added, document exactly whether token service completes at seating, order delivery, or an explicit staff action.
+
+### Dummy menu and food ordering
+- Add sample/demo menu items with names, descriptions if appropriate, prices, and availability.
+- If included in the stable scope, let customers place a simple order tied to their queue token/reservation, and let staff move orders through PLACED, PREPARING, READY, SERVED, or CANCELLED.
+- Calculate totals on the server using stored menu prices; never trust submitted prices.
+- Scope menu items and orders to their restaurant.
+- Implement this after core roles, restaurant isolation, queue operations, reservations, and analytics are stable if scope becomes too large.
+
+### Analytics charts
+- Include a bar chart for queue/service volume and a pie/doughnut chart for queue status/outcomes.
+- Show current waiting count separately from historical people served.
+- Add restaurant and date filters; ensure chart totals match verified database queries and show useful empty states.
+
+## Revised order of work
+1. Baseline inspection, tests, and SQLite backup.
+2. Admin/staff roles, restaurant ownership, and strict data isolation.
+3. QR-first customer queue page (no directory or restaurant search).
+4. Staff queue controls, no-show handling, and served-token archival.
+5. QR queue joining.
+6. Automatic queue updates.
+7. Reservations.
+8. Analytics metrics and charts.
+9. Demo menu and food orders.
+10. UI polish, regression tests, README update.
+
+Begin with Phase 0 only. Report current architecture, build/test results, schema risks, and a proposed safe sequence before making major changes. Keep SQLite and preserve existing data.
+
+
+## FINAL DECISION — SUPERSEDES ANY CONFLICTING INSTRUCTIONS ABOVE
+
+Use a **QR-first multi-restaurant** model. Do NOT implement the previously proposed customer-facing restaurant directory, name search, keyword search, or generic browse-restaurants homepage. Those features have been explicitly removed from scope.
+
+Keep SQLite and the existing application. Maintain a minimal restaurant entity/record with a unique public identifier so the backend can isolate restaurant queues. Admin can manage restaurants and staff, but customers do not search for restaurants: each restaurant displays its own unique QR code, which opens a restaurant-specific queue page directly. The customer sees a privacy-safe waiting list or waiting count, can generate a token, and can track its status. Never show customer contact details in the public queue.
+
+All queue entries, tables, reservations, history, orders, menu data, staff permissions, and analytics must be scoped to the correct restaurant. Preserve existing SQLite data through safe migrations/backfills. Do not physically delete served tokens; remove them from the active queue view by changing status while retaining history.
+
+Revised order: (0) inspect/build/backup, (1) restaurant ownership plus admin/staff authorization, (2) QR-specific customer queue and token flow, (3) staff controls and token lifecycle, (4) automatic updates, (5) reservations, (6) analytics, (7) demo menu and food orders, (8) UI polish and full regression testing. Start with Phase 0 only and report before major changes.

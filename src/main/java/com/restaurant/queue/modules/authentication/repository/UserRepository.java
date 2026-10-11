@@ -9,4 +9,7 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
+    java.util.List<User> findByRestaurantId(Long restaurantId);
+    java.util.List<User> findByRole(String role);
+    boolean existsByUsername(String username);
 }
