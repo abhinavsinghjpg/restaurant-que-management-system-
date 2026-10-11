@@ -1,0 +1,31 @@
+# Git
+.git/
+.gitignore
+
+# Maven
+target/
+
+# SQLite databases & backups - NEVER bake into Docker image
+*.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite3
+*.backup*
+restaurant_queue*
+
+# IDE and Editor files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Documentation and text files
+*.md
+*.txt
+
+# Secrets & environment
+application-secrets.properties
+.env

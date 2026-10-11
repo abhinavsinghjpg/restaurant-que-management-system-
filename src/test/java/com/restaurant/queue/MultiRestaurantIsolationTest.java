@@ -1,15 +1,10 @@
 package com.restaurant.queue;
 
-import com.restaurant.queue.common.constants.QueueStatus;
 import com.restaurant.queue.common.constants.TableStatus;
 import com.restaurant.queue.common.exception.QueueEntryNotFoundException;
-import com.restaurant.queue.common.util.TokenGenerator;
-import com.restaurant.queue.modules.authentication.model.User;
-import com.restaurant.queue.modules.authentication.repository.UserRepository;
 import com.restaurant.queue.modules.authentication.service.AuthService;
 import com.restaurant.queue.modules.customer_queue.dto.JoinQueueRequest;
 import com.restaurant.queue.modules.customer_queue.model.QueueEntry;
-import com.restaurant.queue.modules.customer_queue.repository.QueueEntryRepository;
 import com.restaurant.queue.modules.customer_queue.service.CustomerQueueService;
 import com.restaurant.queue.modules.queue_management.service.QueueManagementService;
 import com.restaurant.queue.modules.restaurant_management.model.Restaurant;
@@ -35,9 +30,6 @@ class MultiRestaurantIsolationTest {
     private RestaurantRepository restaurantRepository;
 
     @Autowired
-    private QueueEntryRepository queueEntryRepository;
-
-    @Autowired
     private RestaurantTableRepository tableRepository;
 
     @Autowired
@@ -48,12 +40,6 @@ class MultiRestaurantIsolationTest {
 
     @Autowired
     private TableManagementService tableManagementService;
-
-    @Autowired
-    private TokenGenerator tokenGenerator;
-
-    @Autowired
-    private UserRepository userRepository;
 
     @Autowired
     private AuthService authService;

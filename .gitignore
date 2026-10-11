@@ -1,7 +1,11 @@
-# SQLite database file — do not commit
+# SQLite database files and backups — do not commit
 *.db
-*.db-shm
-*.db-wal
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite3
+*.backup*
+restaurant_queue*
 
 # Maven build output
 target/

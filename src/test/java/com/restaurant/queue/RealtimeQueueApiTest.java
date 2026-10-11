@@ -1,6 +1,5 @@
 package com.restaurant.queue;
 
-import com.restaurant.queue.common.constants.QueueStatus;
 import com.restaurant.queue.modules.customer_queue.dto.JoinQueueRequest;
 import com.restaurant.queue.modules.customer_queue.model.QueueEntry;
 import com.restaurant.queue.modules.customer_queue.service.CustomerQueueService;

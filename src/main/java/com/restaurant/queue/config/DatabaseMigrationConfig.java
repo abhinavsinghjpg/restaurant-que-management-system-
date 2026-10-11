@@ -62,23 +62,35 @@ public class DatabaseMigrationConfig {
             }
 
             // 3. Update restaurant_tables
-            addColumnIfMissing(stmt, "restaurant_tables", "restaurant_id", "BIGINT DEFAULT 1");
-            stmt.executeUpdate("UPDATE restaurant_tables SET restaurant_id = 1 WHERE restaurant_id IS NULL");
+            if (tableExists(stmt, "restaurant_tables")) {
+                addColumnIfMissing(stmt, "restaurant_tables", "restaurant_id", "BIGINT DEFAULT 1");
+                stmt.executeUpdate("UPDATE restaurant_tables SET restaurant_id = 1 WHERE restaurant_id IS NULL");
+            }
 
             // 4. Update queue_entries
-            addColumnIfMissing(stmt, "queue_entries", "restaurant_id", "BIGINT DEFAULT 1");
-            stmt.executeUpdate("UPDATE queue_entries SET restaurant_id = 1 WHERE restaurant_id IS NULL");
+            if (tableExists(stmt, "queue_entries")) {
+                addColumnIfMissing(stmt, "queue_entries", "restaurant_id", "BIGINT DEFAULT 1");
+                stmt.executeUpdate("UPDATE queue_entries SET restaurant_id = 1 WHERE restaurant_id IS NULL");
+            }
 
             // 5. Update users
-            addColumnIfMissing(stmt, "users", "restaurant_id", "BIGINT");
-            addColumnIfMissing(stmt, "users", "active", "BOOLEAN DEFAULT 1");
-            stmt.executeUpdate("UPDATE users SET active = 1 WHERE active IS NULL");
-            stmt.executeUpdate("UPDATE users SET restaurant_id = 1 WHERE (role = 'STAFF' OR role = 'ROLE_STAFF' OR UPPER(role) LIKE '%STAFF%') AND restaurant_id IS NULL");
+            if (tableExists(stmt, "users")) {
+                addColumnIfMissing(stmt, "users", "restaurant_id", "BIGINT");
+                addColumnIfMissing(stmt, "users", "active", "BOOLEAN DEFAULT 1");
+                stmt.executeUpdate("UPDATE users SET active = 1 WHERE active IS NULL");
+                stmt.executeUpdate("UPDATE users SET restaurant_id = 1 WHERE (role = 'STAFF' OR role = 'ROLE_STAFF' OR UPPER(role) LIKE '%STAFF%') AND restaurant_id IS NULL");
+            }
 
             // 6. Create indexes for restaurant-scoped queries
-            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_qe_restaurant_status ON queue_entries (restaurant_id, status)");
-            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_rt_restaurant ON restaurant_tables (restaurant_id)");
-            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_restaurant ON users (restaurant_id)");
+            if (tableExists(stmt, "queue_entries")) {
+                stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_qe_restaurant_status ON queue_entries (restaurant_id, status)");
+            }
+            if (tableExists(stmt, "restaurant_tables")) {
+                stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_rt_restaurant ON restaurant_tables (restaurant_id)");
+            }
+            if (tableExists(stmt, "users")) {
+                stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_restaurant ON users (restaurant_id)");
+            }
 
             // 7. Create reservations table
             stmt.executeUpdate("""
@@ -118,6 +130,12 @@ public class DatabaseMigrationConfig {
         if (!columns.isEmpty() && !columns.contains(column.toLowerCase())) {
             stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + colDef);
             log.info("Added column {}.{}", table, column);
+        }
+    }
+
+    private static boolean tableExists(Statement stmt, String table) throws SQLException {
+        try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='" + table + "'")) {
+            return rs.next() && rs.getInt(1) > 0;
         }
     }
 }

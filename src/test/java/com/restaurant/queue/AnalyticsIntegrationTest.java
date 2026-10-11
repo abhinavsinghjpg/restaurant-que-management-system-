@@ -67,7 +67,7 @@ class AnalyticsIntegrationTest {
 
     @Test
     void testAnalyticsCalculationsAndMetrics() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = java.time.LocalDate.now().atTime(12, 30);
 
         long uid = System.nanoTime();
 

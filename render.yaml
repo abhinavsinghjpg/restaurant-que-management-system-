@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: restaurant-queue-management
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    disk:
+      name: restaurant-sqlite-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /var/data/restaurant_queue.db
+      - key: JAVA_OPTS
+        value: "-Djava.awt.headless=true -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
