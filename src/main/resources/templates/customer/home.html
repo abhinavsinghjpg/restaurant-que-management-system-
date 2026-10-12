@@ -27,8 +27,11 @@
             🍽️ Restaurant<span>Queue</span>
         </a>
         <div class="ms-auto d-flex gap-2">
-            <a href="/queue/join" class="btn btn-primary">
-                <i class="fas fa-plus-circle"></i> Join Queue
+            <a href="/r/default-restaurant" class="btn btn-primary">
+                <i class="fas fa-qrcode"></i> QR Live Queue
+            </a>
+            <a href="/r/default-restaurant/reserve" class="btn btn-outline-warning">
+                <i class="fas fa-calendar-check"></i> Book Table
             </a>
             <a href="/login" class="btn btn-outline-light">
                 Staff Login
@@ -43,7 +46,7 @@
         <div class="fade-in-up">
             <div class="mb-3">
                 <span style="background: rgba(255,107,53,0.15); color: var(--primary); padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
-                    ✨ Digital Queue Management
+                    ✨ Digital Queue & QR Management
                 </span>
             </div>
             <h1 class="hero-title">
@@ -51,14 +54,17 @@
                 <span class="highlight">Enjoy the Meal.</span>
             </h1>
             <p class="hero-subtitle">
-                Join our digital queue from anywhere. Get a token, track your position in real-time, and we'll let you know when your table is ready.
+                Join our digital queue via QR from anywhere. Get a token, track your position in real-time, or reserve a table in advance.
             </p>
             <div class="d-flex gap-3 justify-content-center flex-wrap">
-                <a href="/queue/join" class="btn btn-primary btn-lg pulse-glow">
-                    <i class="fas fa-ticket-alt"></i> Join the Queue Now
+                <a href="/r/default-restaurant" class="btn btn-primary btn-lg pulse-glow">
+                    <i class="fas fa-qrcode"></i> Join Live QR Queue
                 </a>
-                <a href="#how-it-works" class="btn btn-outline-light btn-lg">
-                    How it works <i class="fas fa-arrow-down"></i>
+                <a href="/r/default-restaurant/reserve" class="btn btn-outline-warning btn-lg">
+                    <i class="fas fa-calendar-alt"></i> Reserve a Table
+                </a>
+                <a href="/r/default-restaurant/print" target="_blank" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-print"></i> View QR Poster
                 </a>
             </div>
         </div>
@@ -121,8 +127,8 @@
             </div>
         </div>
         <div class="text-center mt-5">
-            <a href="/queue/join" class="btn btn-primary btn-lg">
-                <i class="fas fa-arrow-right"></i> Get Started
+            <a href="/r/default-restaurant" class="btn btn-primary btn-lg">
+                <i class="fas fa-qrcode"></i> Get Started with QR Queue
             </a>
         </div>
     </div>
